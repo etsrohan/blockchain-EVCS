@@ -1,105 +1,115 @@
-from web3 import Web3
+from web3 import Web3, middleware
+from web3.exceptions import ContractLogicError
+from web3.middleware import geth_poa_middleware
+from web3.gas_strategies.time_based import *
 import json
+import asyncio
 import time
 from random import randint
-import asyncio
-import threading
 
-AUCTION_TIME = 30
-POLL_INTERVAL = 15
+## Global Variables
+INFURA_URL  = "https://rinkeby.infura.io/v3/ec9d7ab198984284b62af4c1f4e27763"
 
-with open("address.info", "r") as file_obj:
-    file_info = file_obj.readlines()
+CONTRACT_ADDRESS = "0x396231a9997F2B56EB6E07c516D7f5ddaA096821"
 
-contract_address = file_info[0][:-1]    # there is a \n at the end of the address in address.info
-abi = json.loads(file_info[1])
+# Accounts and Private Key Pairs
+ACCOUNTS_DICT = {"0x013E38F0670e13F252ce2C041239Ca1DdE7DC393": "b22e9f365e9e2512b0ed58bbed53264d4866ae07684148f2456e9d832a3dbd42",
+                 "0x11C9c3Fc3Dab31bf29FdcbCb4D8E3CE48586896F": "441f592eecd252dd704455740f2d0a216b92c9a824d05e30edb319a909986e19",
+                 "0xab5314EEfC7B540F25B12Ca452D10301317353B8": "6fbb06c1c031b620d23f7d3297511807efdd64e8ec0e6db9e0a82005a4f7a00e",
+                 "0x2fa6C186fCBf88be8A6fAdf5f8e55f030a74e009": "ccd523d78ab18cf2254baa1d042655d60e6302dc6a84305a16efdf0f68247732",
+                 "0xA3cA01A05dF984A6610EaF936adb606DFb4225bc": "7998f75140c68975546e14fc15185425abb5546ecabd62b18982082b50f7c96a",
+                 "0xF1C273173d39504CA0D248F780D53a43A9a10c7f": "2e1a6876a4d50afc8effead53dc1e3deb1e54c6dc4bc66cdd3fc0434463f67cb",
+                 "0xFD4271113d4635f6adf9482E2819A450eB2d831A": "13b4584305a62f7604c1019a30f3b4db0a2332b5fa6dda3500a88390da27bcde",
+                 "0xeF4b3BC22F5583266eB26eb623FB7b23d5d43ae7": "a8ff2bfd534fca0091bc0f199a7e09f7dc6c6d953582001d584ad541efb57fb8",
+                 "0x4c3d603edCC98320d9B1D8ef52415FdDb8106cCB": "5fd2537650d85b9f698f1f151cc759a28577413ce7bd9f39755143afdef25fe3",
+                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642": "72c5c1ad91595866ef9d26c413073f2d8262e327716f4ddd317f330f73dc67c2"}
 
-ganache_url = 'HTTP://127.0.0.1:7545'
-w3 = Web3(Web3.HTTPProvider(ganache_url))
-w3.eth.default_account = w3.eth.accounts[0]
+ACCOUNTS_LIST = ["0x013E38F0670e13F252ce2C041239Ca1DdE7DC393",
+                 "0x11C9c3Fc3Dab31bf29FdcbCb4D8E3CE48586896F",
+                 "0xab5314EEfC7B540F25B12Ca452D10301317353B8",
+                 "0x2fa6C186fCBf88be8A6fAdf5f8e55f030a74e009",
+                 "0xA3cA01A05dF984A6610EaF936adb606DFb4225bc",
+                 "0xF1C273173d39504CA0D248F780D53a43A9a10c7f",
+                 "0xFD4271113d4635f6adf9482E2819A450eB2d831A",
+                 "0xeF4b3BC22F5583266eB26eb623FB7b23d5d43ae7",
+                 "0x4c3d603edCC98320d9B1D8ef52415FdDb8106cCB",
+                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642"]
+
+AUCTION_TIME = 60
+
+ABI = json.loads('[{"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "bidder", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}], "name": "BidNotCorrectelyRevealed", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "address", "name": "_buyer", "type": "address"}, {"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}], "name": "ContractEstablished", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "DoubleAuctionStart", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}], "name": "FirstOfferAccepted", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "buyer", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_maxPrice", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_time", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_auctionTime", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_location", "type": "uint256"}], "name": "LogReqCreated", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}], "name": "LowestBidDecreased", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "ReportNotOk", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "ReportOk", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "buyer", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "RequestFailed", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}, {"indexed": false, "internalType": "uint256", "name": "_bidId", "type": "uint256"}], "name": "SealedBidReceived", "type": "event"}, {"inputs": [{"internalType": "address", "name": "", "type": "address"}], "name": "accounts", "outputs": [{"internalType": "int256", "name": "balance", "type": "int256"}, {"internalType": "bool", "name": "isUser", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_user", "type": "address"}, {"internalType": "int256", "name": "_amount", "type": "int256"}], "name": "addBalance", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "closeAuction", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "name": "contracts", "outputs": [{"internalType": "address", "name": "buyer", "type": "address"}, {"internalType": "address", "name": "seller", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}, {"internalType": "uint256", "name": "buyerMaxPrice", "type": "uint256"}, {"internalType": "uint256", "name": "currentPrice", "type": "uint256"}, {"internalType": "bool", "name": "buyerMeterReport", "type": "bool"}, {"internalType": "bool", "name": "sellerMeterReport", "type": "bool"}, {"internalType": "uint256", "name": "deliveryTime", "type": "uint256"}, {"internalType": "uint256", "name": "auctionTimeOut", "type": "uint256"}, {"internalType": "uint256", "name": "deliveryLocation", "type": "uint256"}, {"internalType": "enum EvChargingMarket.ContractState", "name": "state", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_amount", "type": "uint256"}, {"internalType": "uint256", "name": "_price", "type": "uint256"}, {"internalType": "uint256", "name": "_time", "type": "uint256"}, {"internalType": "uint256", "name": "_auctionTime", "type": "uint256"}, {"internalType": "uint256", "name": "_location", "type": "uint256"}], "name": "createReq", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "doubleAuctionBegin", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "endReveal", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "address", "name": "buyer", "type": "address"}, {"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "evAuctionFail", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "getAuctionState", "outputs": [{"internalType": "enum EvChargingMarket.AuctionState", "name": "", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_price", "type": "uint256"}], "name": "getHash", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "pure", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "getNumBids", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "getNumberOfReq", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_index", "type": "uint256"}], "name": "getReq", "outputs": [{"internalType": "enum EvChargingMarket.ContractState", "name": "", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}], "name": "makeSealedOffer", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_user", "type": "address"}], "name": "registerNewUser", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "uint256", "name": "_price", "type": "uint256"}, {"internalType": "uint256", "name": "_bidId", "type": "uint256"}], "name": "revealOffer", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bool", "name": "_state", "type": "bool"}], "name": "setBuyerMeterReport", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bool", "name": "_state", "type": "bool"}], "name": "setSellerMeterReport", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [], "name": "totalAuction", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "address", "name": "_buyer", "type": "address"}, {"internalType": "address", "name": "_seller", "type": "address"}], "name": "updateBalance", "outputs": [], "stateMutability": "nonpayable", "type": "function"}]')
+# web3.py instance
+w3 = Web3(Web3.HTTPProvider(INFURA_URL))
+
+# Message for successful connection to Rinkeby network
+if w3.isConnected():
+    print("[CONNECTED] Connection to Rinkeby Ethereum Test Network Established!!!")
+
+# Adding Geth Middleware
+w3.middleware_onion.inject(geth_poa_middleware, layer=0)
+w3.middleware_onion.add(middleware.latest_block_based_cache_middleware)
+w3.middleware_onion.add(middleware.simple_cache_middleware)
+
+# set pre-funded account as deployer
+w3.eth.default_account = ACCOUNTS_LIST[0]
 
 evchargingmarket = w3.eth.contract(
-    address = contract_address,
-    abi = abi
+    address = CONTRACT_ADDRESS,
+    abi = ABI
 )
 
-# getting the list of all accounts on the network
-accounts_list = w3.eth.get_accounts()
+strategy = construct_time_based_gas_price_strategy(15)
+w3.eth.setGasPriceStrategy(strategy)
 
-# separating the EV addresses 2/3rd of the networks
-separator = int((len(w3.eth.get_accounts()) - 1) / 3) + 1
-EV_addresses = accounts_list[separator : ]
+print("[PROCESSING] Proceeding to EV request program!")
+# ------------------------------------------Main Program Starts Here------------------------------------------
 
 # Function to close an opened auction
-def close_auction(buyer_address, auc_id, auc_time, price):
-    print(f"\n[ID: {auc_id}] New request - Auction Open!")
-    print(f"[ID: {auc_id}] Max bid price from buyer: {price}")
+def close_auction(buyer_address, auc_id, auc_time, tr):
     # wait until the auction closes
     while time.time() < auc_time:
         time.sleep(2)
     # close the auction with specified auction id
-    tx_hash = evchargingmarket.functions.closeAuction(auc_id).transact({'from': buyer_address})
+    txn = evchargingmarket.functions.closeAuction(auc_id).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
     print(f"\n[ID: {auc_id}] Closing the auction now...")
 
 # Function to randomly select an EV address and send a charging request
-def send_ev_request(buyer_address = None, _id = None):
+def send_ev_request(tr, buyer_address = None, _id = None):
 
-    # Creating charging request by a random user
-    if buyer_address == None:
-        buyer_address = EV_addresses[randint(0, len(EV_addresses) - 1)]
-    else:
-        print("\n[ERROR]: Auction Failed! Auction ID: ", _id)
-        print("Resending request for address: ", buyer_address)
+    print("\n[TRANSACTING] Sending New Request: ", _id)
+    print("Buyer Address : ", buyer_address)
 
     amount = randint(10, 60)
     price = randint(10, 60)
+    time_close = int(time.time()) + AUCTION_TIME
 
     # New request ID for new auction
-    tx_hash = evchargingmarket.functions.createReq(amount, price, int(time.time()) + AUCTION_TIME, AUCTION_TIME, 5).transact({'from': buyer_address})
+    txn = evchargingmarket.functions.createReq(amount, price, time_close, AUCTION_TIME, 5).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("\nNew request from EV")
+    return time_close, price
 
+# Getting the Auction ID for the next Auction
+auc_id = evchargingmarket.functions.getNumberOfReq().call()
 
-# asynchronous defined function to loop
-# this func. sets up an event filter and is looking for new entries for the event "LogReqCreated" and "RequestFailed"
-# this loop runs on a poll interval
-async def log_loop(event_filter, poll_interval, select):
-    while True:
-        for event in event_filter.get_new_entries():
-            if event['event'] == 'LogReqCreated':
-                thread = threading.Thread(target = close_auction,
-                                          args = (event['args']['buyer'],
-                                                  event['args']['_aucId'],
-                                                  event['args']['_time'],
-                                                  event['args']['_maxPrice']))
-            elif event['event'] == 'RequestFailed':
-                thread = threading.Thread(target = send_ev_request,
-                                          args = (event['args']['buyer'],
-                                                  event['args']['_id']))
-            thread.start()
-        if select == 1:
-            thread = threading.Thread(target = send_ev_request, args = ())
-            thread.start()
-            await asyncio.sleep(poll_interval)
-            print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
-        else:
-            await asyncio.sleep(2)
+# Send a request by an EV
+buyer = ACCOUNTS_LIST[randint(1, 4)]
+nonce = w3.eth.getTransactionCount(buyer)
+gas_price = w3.eth.generateGasPrice()
+tr = {
+    'from': buyer,
+    'nonce': Web3.toHex(nonce),
+    'gasPrice': gas_price,
+}
+print(f"Nonce: {nonce}")
 
-# main function
-# creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
-# try to run log_loop function above every 2 secs
-def main():
-    event_filter_1 = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')
-    event_filter_2 = evchargingmarket.events.RequestFailed().createFilter(fromBlock = 'latest')
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(
-            asyncio.gather(
-                log_loop(event_filter_1, POLL_INTERVAL, 0), log_loop(event_filter_2, POLL_INTERVAL, 1)))
-    finally:
-        loop.close()
+time_close, price = send_ev_request(tr, buyer, auc_id)
 
-
-# main function init
-main()
+# Close the Auction
+nonce += 1
+tr['nonce'] = Web3.toHex(nonce)
+close_auction(buyer, auc_id, time_close, tr)
