@@ -58,7 +58,7 @@ tr = {
 
 # submit transaction that deploys the contract
 signed = w3.eth.account.sign_transaction(tr, PRIVATE_KEY)
-tx_hash = w3.eth.sendRawTransaction(signed.rawTransaction)
+tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
 
 # wait for the transaction to be mined and get the transaction receipt
 tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
