@@ -70,6 +70,7 @@ print("[PROCESSING] Proceeding to CS reply program!")
 gas_price = w3.eth.generateGasPrice()
 print("\nWaiting for request...")
 auc_dict = {}
+bid_list = []
 count_reveal = 0
 
 # Function that checks for reveal to end then reveals their offer
@@ -131,8 +132,8 @@ def send_bid(auc_id, _time, buyer, max_price, seller):
 # this func. sets up an event filter and is looking for new entries for the event "LogReqCreated"
 # this loop runs on a poll interval
 async def log_loop1(event_filter, poll_interval):
+    global auc_dict
     while True:
-        global auc_dict
         for LogReqCreated in event_filter.get_new_entries():
             if LogReqCreated['args']['_aucId'] in auc_dict.keys():
                 continue
@@ -151,17 +152,17 @@ async def log_loop1(event_filter, poll_interval):
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
+    global bid_list
     while True:
-        bid_list = []
         for SealedBidReceived in event_filter.get_new_entries():
-            if SealedBidReceived['args']['_bidId'] in bid_list:
+            if (SealedBidReceived['args']['_aucId'], SealedBidReceived['args']['_bidId']) in bid_list:
                 continue
             thread = threading.Thread(target = reveal_offer, args = (
                 SealedBidReceived['args']['_aucId'],
                 SealedBidReceived['args']['seller'],
                 SealedBidReceived['args']['_bidId']))
             thread.start()
-            bid_list.append(SealedBidReceived['args']['_bidId'])
+            bid_list.append((SealedBidReceived['args']['_aucId'], SealedBidReceived['args']['_bidId']))
         await asyncio.sleep(poll_interval)
 
 

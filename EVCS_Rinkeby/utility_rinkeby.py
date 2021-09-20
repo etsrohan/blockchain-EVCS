@@ -59,7 +59,7 @@ evchargingmarket = w3.eth.contract(
 strategy = construct_time_based_gas_price_strategy(15)
 w3.eth.setGasPriceStrategy(strategy)
 
-print("[PROCESSING] Proceeding to EV request program!")
+print("[PROCESSING] Proceeding to Utility program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
 gas_price = w3.eth.generateGasPrice()
@@ -69,10 +69,39 @@ print("\nWaiting for Double Auction to Begin...")
 def update_balance(event):
     auc_id = event['args']['_aucId']
     buyer = evchargingmarket.functions.contracts(auc_id).call()[0]
-    seller = evchargingmarket.functions.contracts(auc_id).call()[1]   
-    print(f"[ID: {auc_id}] Updating Buyer and Seller Address")
-    print("Buyer Address: ", buyer)
-    print("Seller Address: ", buyer)
+    seller = evchargingmarket.functions.contracts(auc_id).call()[1]
+
+    if evchargingmarket.functions.contracts(auc_id).call()[4] == 0 or seller == None:
+        print(f"[ID: {auc_id}][ERROR] Invalid Transaction. Please Send Another Request")
+
+    else:
+        # If Contract is in ReadyForPayment State; Proceed with payment
+        if evchargingmarket.functions.contracts(auc_id).call()[10] == 4:
+            nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+            tr = {
+                'from': ACCOUNTS_LIST[0],
+                'nonce': Web3.toHex(nonce),
+                'gasPrice': gas_price,
+            }
+            print(f"\n[ID: {auc_id}] Updating Buyer and Seller Balances")
+            txn = evchargingmarket.functions.updateBalance(auc_id, buyer, seller).buildTransaction(tr)
+            signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
+            tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+            amount_charge = evchargingmarket.functions.contracts(auc_id).call()[2]
+            buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
+            seller_price = evchargingmarket.functions.contracts(auc_id).call()[4]
+
+            print(f"\n\n[ID: {auc_id}] Updated balances of buyer and seller...")
+            print("Selling Price: ", seller_price)
+            print("Buyer Price: ", buyer_price)
+            print("Exchange price: ", (seller_price + buyer_price) / 2)
+            print("Amount of Charge: ", amount_charge)
+            print("\nSeller @ Address: ", seller)
+            print("Seller balance: ", evchargingmarket.functions.accounts(seller).call()[0])
+            print("\nBuyer @ Address", buyer)
+            print("Buyer balance: ", evchargingmarket.functions.accounts(buyer).call()[0])
 
 # Function to Send Seller And Buyer Meter Reports
 def send_reports(event):
