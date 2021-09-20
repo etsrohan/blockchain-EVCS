@@ -67,6 +67,7 @@ w3.eth.setGasPriceStrategy(strategy)
 print("[PROCESSING] Proceeding to CS reply program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
+gas_price = w3.eth.generateGasPrice()
 print("\nWaiting for request...")
 auc_dict = {}
 count_reveal = 0
@@ -74,14 +75,14 @@ count_reveal = 0
 # Function that checks for reveal to end then reveals their offer
 def reveal_offer(auc_id, seller, bid_id):
     global count_reveal
-    print(f"[{seller}] Waiting for auction[{auc_id}] to close...")
+    print(f"[{seller}] Waiting for [{auc_id}]auction to close...")
     while True:
         # when all CS's are done sending their bids check to see if the auction closed
         if evchargingmarket.functions.getAuctionState(auc_id).call():
             break
+        time.sleep(2)   # Check every 2 seconds to see if auction is closed
 
     nonce = w3.eth.getTransactionCount(seller)
-    gas_price = w3.eth.generateGasPrice()
     tr = {
         'from': seller,
         'nonce': Web3.toHex(nonce),
@@ -92,10 +93,12 @@ def reveal_offer(auc_id, seller, bid_id):
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[seller])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print(f"[{seller}] Offer Revealed Successfully")
+    print(f"\n[{seller}] Offer Revealed Successfully")
+
+    # Print Contract As soon as 5 Sealers reveal their bids
     count_reveal += 1
     if count_reveal == 5:
-        print(evchargingmarket.functions.contracts(auc_id).call())
+        print(f"[ID: {auc_id}] All Offers Revealed Proceeding to Meter Reports...")
         count_reveal = 0
 
 
@@ -104,7 +107,6 @@ def send_bid(auc_id, _time, buyer, max_price, seller):
     global auc_dict
 
     nonce = w3.eth.getTransactionCount(seller)
-    gas_price = w3.eth.generateGasPrice()
     tr = {
         'from': seller,
         'nonce': Web3.toHex(nonce),
@@ -150,12 +152,16 @@ async def log_loop1(event_filter, poll_interval):
 
 async def log_loop2(event_filter, poll_interval):
     while True:
+        bid_list = []
         for SealedBidReceived in event_filter.get_new_entries():
-                thread = threading.Thread(target = reveal_offer, args = (
-                    SealedBidReceived['args']['_aucId'],
-                    SealedBidReceived['args']['seller'],
-                    SealedBidReceived['args']['_bidId']))
-                thread.start()
+            if SealedBidReceived['args']['_bidId'] in bid_list:
+                continue
+            thread = threading.Thread(target = reveal_offer, args = (
+                SealedBidReceived['args']['_aucId'],
+                SealedBidReceived['args']['seller'],
+                SealedBidReceived['args']['_bidId']))
+            thread.start()
+            bid_list.append(SealedBidReceived['args']['_bidId'])
         await asyncio.sleep(poll_interval)
 
 
