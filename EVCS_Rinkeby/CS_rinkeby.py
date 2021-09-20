@@ -68,76 +68,45 @@ print("[PROCESSING] Proceeding to CS reply program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
 print("\nWaiting for request...")
-
-auctions_done = []
-
-# # Function to re-do failed auction
-# def request_failed(buyer_address, auc_id, error_type):
-#     if error_type == 0:
-#         print(f"\n[ID: {auc_id}] No bids received for the auction...")
-#     elif error_type == 1:
-#         print(f"\n[ID: {auc_id}] Seller prices were not less than asking price!")
-
-#     tx_hash = evchargingmarket.functions.evAuctionFail(buyer_address, auc_id).transact()
-#     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-
-#     print(f"Sending re-do request for auction...")
-
-# # seller report sending function
-# def send_seller_report(auc_id):
-#     seller_address = (evchargingmarket.functions.contracts(auc_id).call())[1]
-
-#     tx_hash = evchargingmarket.functions.setSellerMeterReport(auc_id, True).transact({'from': seller_address})
-#     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-#     print(f"[ID: {auc_id}] Seller meter report sent...")
-#     print(f"[ID: {auc_id}] Contract State: {evchargingmarket.functions.contracts(auc_id).call()[10]}")
-
-# # close reveal as buyer and send buyer report
-# def close_reveal(auc_id):
-#     buyer_address = (evchargingmarket.functions.contracts(auc_id).call())[0]
-
-#     tx_hash = evchargingmarket.functions.endReveal(auc_id).transact({'from': buyer_address})
-#     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-#     print(f"\n[ID: {auc_id}] Reveal Ended...")
-
-#     tx_hash = evchargingmarket.functions.setBuyerMeterReport(auc_id, True).transact({'from': buyer_address})
-#     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-#     print(f"[ID: {auc_id}] Buyer meter report sent...")
-
-#     send_seller_report(auc_id)
-
-
-# # offer revealing function
-# def reveal_offer(auc_id):
-#     print(f"\n[ID: {auc_id}] Waiting for auction to close...")
-#     while True:
-#         # when all CS's are done sending their bids check to see if the auction closed
-#         if evchargingmarket.functions.getAuctionState(auc_id).call():
-#             break
-#         time.sleep(2)   # Check every 2 seconds to see if auction is closed
-#     print(f'[ID: {auc_id}] Auction closed... Revealing offers...')
-#     print(f"[ID: {auc_id}] The number of bids received is: {evchargingmarket.functions.getNumBids(auc_id).call()}")
-
-#     for seller_address in auc_dict[auc_id].keys():
-
-#         bid_id = auc_dict[auc_id][seller_address][0]
-#         price = auc_dict[auc_id][seller_address][1]
-
-#         tx_hash = evchargingmarket.functions.revealOffer(auc_id, price, bid_id).transact({'from': seller_address})
-#         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-
-#     close_reveal(auc_id)
-
 auc_dict = {}
+count_reveal = 0
 
-# event handling function
+# Function that checks for reveal to end then reveals their offer
+def reveal_offer(auc_id, seller, bid_id):
+    global count_reveal
+    print(f"[{seller}] Waiting for auction[{auc_id}] to close...")
+    while True:
+        # when all CS's are done sending their bids check to see if the auction closed
+        if evchargingmarket.functions.getAuctionState(auc_id).call():
+            break
+
+    nonce = w3.eth.getTransactionCount(seller)
+    gas_price = w3.eth.generateGasPrice()
+    tr = {
+        'from': seller,
+        'nonce': Web3.toHex(nonce),
+        'gasPrice': gas_price,
+    }
+    print(f"\n[{seller}] Revealing offer with price: {auc_dict[auc_id][seller]}, Bid ID: {bid_id}")
+    txn = evchargingmarket.functions.revealOffer(auc_id, auc_dict[auc_id][seller], bid_id).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[seller])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"[{seller}] Offer Revealed Successfully")
+    count_reveal += 1
+    if count_reveal == 5:
+        print(evchargingmarket.functions.contracts(auc_id).call())
+        count_reveal = 0
+
+
+# Function to send an individual bid
 def send_bid(auc_id, _time, buyer, max_price, seller):
     global auc_dict
 
     nonce = w3.eth.getTransactionCount(seller)
     gas_price = w3.eth.generateGasPrice()
     tr = {
-       'from': seller,
+        'from': seller,
         'nonce': Web3.toHex(nonce),
         'gasPrice': gas_price,
     }
@@ -159,8 +128,9 @@ def send_bid(auc_id, _time, buyer, max_price, seller):
 # asynchronous defined function to loop
 # this func. sets up an event filter and is looking for new entries for the event "LogReqCreated"
 # this loop runs on a poll interval
-async def log_loop(event_filter, poll_interval):
+async def log_loop1(event_filter, poll_interval):
     while True:
+        global auc_dict
         for LogReqCreated in event_filter.get_new_entries():
             if LogReqCreated['args']['_aucId'] in auc_dict.keys():
                 continue
@@ -175,7 +145,17 @@ async def log_loop(event_filter, poll_interval):
                     seller_address))
                 thread.start()
             print(f"\n[Active Processes] {threading.active_count() - 1}\n")
-            # print(LogReqCreated)
+            print(auc_dict)
+        await asyncio.sleep(poll_interval)
+
+async def log_loop2(event_filter, poll_interval):
+    while True:
+        for SealedBidReceived in event_filter.get_new_entries():
+                thread = threading.Thread(target = reveal_offer, args = (
+                    SealedBidReceived['args']['_aucId'],
+                    SealedBidReceived['args']['seller'],
+                    SealedBidReceived['args']['_bidId']))
+                thread.start()
         await asyncio.sleep(poll_interval)
 
 
@@ -183,12 +163,13 @@ async def log_loop(event_filter, poll_interval):
 # creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
 # try to run log_loop function above every 2 secs
 def main():
-    event_filter = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')
+    event_filter1 = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')
+    event_filter2 = evchargingmarket.events.SealedBidReceived().createFilter(fromBlock = 'latest')
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(
             asyncio.gather(
-                log_loop(event_filter, 2)))
+                log_loop1(event_filter1, 2), log_loop2(event_filter2, 2)))
     finally:
         loop.close()
 

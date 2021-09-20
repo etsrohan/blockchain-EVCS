@@ -65,3 +65,5 @@ print("[PROCESSING] Proceeding to EV request program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
 print(evchargingmarket.functions.getNumBids(17).call())
+for address in ACCOUNTS_LIST:
+    print(evchargingmarket.functions.accounts(address).call())
