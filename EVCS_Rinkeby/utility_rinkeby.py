@@ -83,8 +83,8 @@ def update_balance(event):
             'nonce': Web3.toHex(nonce),
             'gasPrice': gas_price,
         }
-        print(f"[ID: {auc_id}][ERROR] Sending Message to Buyer ({buyer}) for New Request")
-        txn = evchargingmarket.functions.evAuctionFail(auc_id).buildTransaction(tr)
+        print(f"[ID: {auc_id}][ERROR] Sending Message to Buyer (0x...{buyer[-4:]}) for New Request")
+        txn = evchargingmarket.functions.evAuctionFail(buyer, auc_id).buildTransaction(tr)
         signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -108,7 +108,7 @@ def update_balance(event):
             buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
             seller_price = evchargingmarket.functions.contracts(auc_id).call()[4]
 
-            print(f"\n\n[ID: {auc_id}] Updated balances of Buyer and Seller...")
+            print(f"\n[ID: {auc_id}] Updated balances of Buyer and Seller...")
             print("Selling Price: ", seller_price)
             print("Buyer Price: ", buyer_price)
             print("Exchange price: ", (seller_price + buyer_price) / 2)

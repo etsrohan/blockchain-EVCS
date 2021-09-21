@@ -76,7 +76,8 @@ def double_auction(buyer_address, auc_id, tr):
 
 # Function to End Reveal Period
 def end_reveal(buyer_address, auc_id, tr):
-    input("Press ENTER to End the Reveal Period.")
+    # input("Press ENTER to End the Reveal Period.")
+    time.sleep(10)
 
     # Begin End Reveal
     txn = evchargingmarket.functions.endReveal(auc_id).buildTransaction(tr)
@@ -93,7 +94,7 @@ def close_auction(buyer_address, auc_id, auc_time, tr):
     while time.time() < auc_time:
         time.sleep(2)
     # close the auction with specified auction id
-    input("Press Enter to Close the Auction.")
+    # input("Press Enter to Close the Auction.")
     txn = evchargingmarket.functions.closeAuction(auc_id).buildTransaction(tr)
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
