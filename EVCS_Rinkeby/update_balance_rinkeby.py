@@ -73,19 +73,19 @@ nonce -= 1
 for address in ACCOUNTS_LIST:
 	nonce += 1
 	tr['nonce'] = Web3.toHex(nonce)
+	print("[PROCESSING] Registering New User")
 	txn = evchargingmarket.functions.registerNewUser(address).buildTransaction(tr)
 	signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
 	tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-	print("Part1...")
 
 	nonce += 1
 	tr['nonce'] = Web3.toHex(nonce)
+	print(f"[PROCESSING] Adding Balance of 100000 to User: {address}")
 	txn = evchargingmarket.functions.addBalance(address, 100000).buildTransaction(tr)
 	signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
 	tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-	print("Part2")
 
 for address in ACCOUNTS_LIST:
 	print(f"{address}: {evchargingmarket.functions.accounts(address).call()}")

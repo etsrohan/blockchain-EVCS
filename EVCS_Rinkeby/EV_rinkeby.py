@@ -66,8 +66,6 @@ print("[PROCESSING] Proceeding to EV request program!")
 
 # Function to Begin Double Auction
 def double_auction(buyer_address, auc_id, tr):
-    input("Press ENTER to Begin Double Auction")
-
     # Begin Double Auction
     txn = evchargingmarket.functions.doubleAuctionBegin(auc_id).buildTransaction(tr)
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
@@ -104,10 +102,9 @@ def close_auction(buyer_address, auc_id, auc_time, tr):
     # GO TO END REVEAL
 
 # Function to randomly select an EV address and send a charging request
-def send_ev_request(tr, buyer_address = None, _id = None):
-
+def send_ev_request(tr, buyer_address, _id):
     print("\n[TRANSACTING] Sending New Request: ", _id)
-    print("Buyer Address : ", buyer_address)
+    print(f"Buyer Address : 0x...{buyer_address[-4:]}")
 
     amount = randint(10, 60)
     price = randint(10, 60)
@@ -118,7 +115,7 @@ def send_ev_request(tr, buyer_address = None, _id = None):
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return time_close, price
+    return time_close
 
 # Getting the Auction ID for the next Auction
 auc_id = evchargingmarket.functions.getNumberOfReq().call()
@@ -126,7 +123,9 @@ auc_id = evchargingmarket.functions.getNumberOfReq().call()
 # Send a request by an EV
 buyer = ACCOUNTS_LIST[randint(1, 4)]
 nonce = w3.eth.getTransactionCount(buyer)
+print("[PROCESSING] Calculating Gas Price...")
 gas_price = w3.eth.generateGasPrice()
+print("[COMPLETE] Gas Price: ", gas_price)
 tr = {
     'from': buyer,
     'nonce': Web3.toHex(nonce),
@@ -134,7 +133,7 @@ tr = {
 }
 print(f"Nonce: {nonce}")
 
-time_close, price = send_ev_request(tr, buyer, auc_id)
+time_close = send_ev_request(tr, buyer, auc_id)
 
 # Close the Auction
 nonce += 1

@@ -67,16 +67,22 @@ w3.eth.setGasPriceStrategy(strategy)
 print("[PROCESSING] Proceeding to CS reply program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
+print("[PROCESSING] Calculating Gas Price for Transactions...")
 gas_price = w3.eth.generateGasPrice()
+print("[COMPLETE] Gas Price: ", gas_price)
 print("\nWaiting for request...")
+# A Dictionary containing all the bids sent by CS's for a particular Auction
+# {Auction_ID -> Seller Address -> Seller Bid}
 auc_dict = {}
+# A List of (Auction ID, Bid ID) Tuple pairs to prevent multiple same Bids from a particular user to be revealed
 bid_list = []
+# The Number of Bids Revealed for a particular Auction ID
 count_reveal = 0
 
 # Function that checks for reveal to end then reveals their offer
 def reveal_offer(auc_id, seller, bid_id):
     global count_reveal
-    print(f"[{seller}] Waiting for [{auc_id}]auction to close...")
+    print(f"\n[ID: {auc_id}][0x...{seller[-4:]}] Waiting for auction to close...")
     while True:
         # when all CS's are done sending their bids check to see if the auction closed
         if evchargingmarket.functions.getAuctionState(auc_id).call():
@@ -89,17 +95,17 @@ def reveal_offer(auc_id, seller, bid_id):
         'nonce': Web3.toHex(nonce),
         'gasPrice': gas_price,
     }
-    print(f"\n[{seller}] Revealing offer with price: {auc_dict[auc_id][seller]}, Bid ID: {bid_id}")
+    print(f"\n[ID: {auc_id}][0x...{seller[-4:]}] Revealing offer with price: {auc_dict[auc_id][seller]}, Bid ID: {bid_id}")
     txn = evchargingmarket.functions.revealOffer(auc_id, auc_dict[auc_id][seller], bid_id).buildTransaction(tr)
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[seller])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print(f"\n[{seller}] Offer Revealed Successfully")
+    print(f"\n[ID: {auc_id}][0x...{seller[-4:]}] Offer Revealed Successfully")
 
     # Print Contract As soon as 5 Sealers reveal their bids
     count_reveal += 1
-    if count_reveal == 5:
-        print(f"[ID: {auc_id}] All Offers Revealed Proceeding to Meter Reports...")
+    if count_reveal == evchargingmarket.functions.getNumBids(auc_id).call():
+        print(f"\n[ID: {auc_id}] All Offers Revealed Proceeding to Meter Reports...")
         count_reveal = 0
 
 
@@ -116,16 +122,16 @@ def send_bid(auc_id, _time, buyer, max_price, seller):
     price = randint(5, 50)
     sealed_bid = evchargingmarket.functions.getHash(price).call({'from': seller})
     if time.time() < _time:
-        print(f"[{seller}] Sending bid: {price}")
+        print(f"\n[ID: {auc_id}][0x...{seller[-4:]}] Sending bid: {price}")
         txn = evchargingmarket.functions.makeSealedOffer(auc_id, sealed_bid).buildTransaction(tr)
         signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[seller])
         tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
         auc_dict[auc_id][seller] = price
-        print(f"[SUCCESS][{seller}] Sent bid: {price} Successfully!")
+        print(f"\n[ID: {auc_id}][0x...{seller[-4:]}][SUCCESS] Sent bid: {price} Successfully!")
     else:
-        print(f"[ERROR][{seller}] Sent bid: {price} Unsuccessful!")
+        print(f"\n[ID: {auc_id}][0x...{seller[-4:]}][ERROR] Sent bid: {price} Unsuccessful!")
 
 
 # asynchronous defined function to loop
@@ -138,7 +144,7 @@ async def log_loop1(event_filter, poll_interval):
             if LogReqCreated['args']['_aucId'] in auc_dict.keys():
                 continue
             auc_dict[LogReqCreated['args']['_aucId']] = {}
-            print(f"[{LogReqCreated['args']['_aucId']}] New Request Received!!!")
+            print(f"\n[ID: {LogReqCreated['args']['_aucId']}] New Request Received!!!")
             for seller_address in ACCOUNTS_LIST[5:]:
                 thread = threading.Thread(target = send_bid, args = (
                     LogReqCreated['args']['_aucId'],

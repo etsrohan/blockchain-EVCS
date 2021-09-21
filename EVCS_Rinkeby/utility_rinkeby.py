@@ -62,7 +62,9 @@ w3.eth.setGasPriceStrategy(strategy)
 print("[PROCESSING] Proceeding to Utility program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
+print("[PROCESSING] Calculating Gas Price for Transactions...")
 gas_price = w3.eth.generateGasPrice()
+print("[COMPLETE] Gas Price: ", gas_price)
 print("\nWaiting for Double Auction to Begin...")
 
 # Function to Update Balances
@@ -72,7 +74,20 @@ def update_balance(event):
     seller = evchargingmarket.functions.contracts(auc_id).call()[1]
 
     if evchargingmarket.functions.contracts(auc_id).call()[4] == 0 or seller == None:
-        print(f"[ID: {auc_id}][ERROR] Invalid Transaction. Please Send Another Request")
+        print(f"\n[ID: {auc_id}][ERROR] Invalid Transaction. Min Bid not less than Buyer Price.")
+
+        # Send out RequestFailed Event to let the buyer know to re-send a request
+        nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+        tr = {
+            'from': ACCOUNTS_LIST[0],
+            'nonce': Web3.toHex(nonce),
+            'gasPrice': gas_price,
+        }
+        print(f"[ID: {auc_id}][ERROR] Sending Message to Buyer ({buyer}) for New Request")
+        txn = evchargingmarket.functions.evAuctionFail(auc_id).buildTransaction(tr)
+        signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
+        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
     else:
         # If Contract is in ReadyForPayment State; Proceed with payment
@@ -93,14 +108,14 @@ def update_balance(event):
             buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
             seller_price = evchargingmarket.functions.contracts(auc_id).call()[4]
 
-            print(f"\n\n[ID: {auc_id}] Updated balances of buyer and seller...")
+            print(f"\n\n[ID: {auc_id}] Updated balances of Buyer and Seller...")
             print("Selling Price: ", seller_price)
             print("Buyer Price: ", buyer_price)
             print("Exchange price: ", (seller_price + buyer_price) / 2)
             print("Amount of Charge: ", amount_charge)
-            print("\nSeller @ Address: ", seller)
+            print(f"\nSeller @ Address: 0x...{ seller[-4:]}")
             print("Seller balance: ", evchargingmarket.functions.accounts(seller).call()[0])
-            print("\nBuyer @ Address", buyer)
+            print(f"\nBuyer @ Address: 0x...{buyer[-4:]}")
             print("Buyer balance: ", evchargingmarket.functions.accounts(buyer).call()[0])
 
 # Function to Send Seller And Buyer Meter Reports
@@ -113,7 +128,7 @@ def send_reports(event):
         'nonce': Web3.toHex(nonce),
         'gasPrice': gas_price,
     }
-    print(f"[ID: {auc_id}] Sending Buyer Meter Report...")
+    print(f"\n[ID: {auc_id}] Sending Buyer Meter Report...")
     txn = evchargingmarket.functions.setBuyerMeterReport(auc_id, True).buildTransaction(tr)
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
