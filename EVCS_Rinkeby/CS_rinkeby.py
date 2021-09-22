@@ -173,7 +173,7 @@ async def log_loop2(event_filter, poll_interval):
 
 
 # main function
-# creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
+# creates a filter for the latest block and looks for "LogReqCreated" and "SealedBidReceived" from EVChargingMarket contract
 # try to run log_loop function above every 2 secs
 def main():
     event_filter1 = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')

@@ -64,6 +64,19 @@ w3.eth.setGasPriceStrategy(strategy)
 print("[PROCESSING] Proceeding to EV request program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
+buyer = ACCOUNTS_LIST[randint(1, 4)]
+nonce = w3.eth.getTransactionCount(buyer)
+print("[PROCESSING] Calculating Gas Price...")
+gas_price = w3.eth.generateGasPrice()
+print("[COMPLETE] Gas Price: ", gas_price)
+tr = {
+    'from': buyer,
+    'nonce': Web3.toHex(nonce),
+    'gasPrice': gas_price,
+}
+print(f"Nonce: {nonce}")
+count = 0
+
 # Function to Begin Double Auction
 def double_auction(buyer_address, auc_id, tr):
     # Begin Double Auction
@@ -77,7 +90,7 @@ def double_auction(buyer_address, auc_id, tr):
 # Function to End Reveal Period
 def end_reveal(buyer_address, auc_id, tr):
     # input("Press ENTER to End the Reveal Period.")
-    time.sleep(10)
+    time.sleep(15)
 
     # Begin End Reveal
     txn = evchargingmarket.functions.endReveal(auc_id).buildTransaction(tr)
@@ -90,6 +103,7 @@ def end_reveal(buyer_address, auc_id, tr):
 
 # Function to close an opened auction
 def close_auction(buyer_address, auc_id, auc_time, tr):
+    print("Your Auction ID is", auc_id)
     # wait until the auction closes
     while time.time() < auc_time:
         time.sleep(2)
@@ -103,50 +117,78 @@ def close_auction(buyer_address, auc_id, auc_time, tr):
     # GO TO END REVEAL
 
 # Function to randomly select an EV address and send a charging request
-def send_ev_request(tr, buyer_address, _id):
-    print("\n[TRANSACTING] Sending New Request: ", _id)
+def send_ev_request(tr, buyer_address):
+    print("\n[TRANSACTING] Sending New Request: ")
     print(f"Buyer Address : 0x...{buyer_address[-4:]}")
 
     amount = randint(10, 60)
     price = randint(10, 60)
     time_close = int(time.time()) + AUCTION_TIME
+    print(f"Buyer Price : {price}")
 
     # New request ID for new auction
     txn = evchargingmarket.functions.createReq(amount, price, time_close, AUCTION_TIME, 5).buildTransaction(tr)
     signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    return time_close
 
-# Getting the Auction ID for the next Auction
-auc_id = evchargingmarket.functions.getNumberOfReq().call()
+    return price
 
-# Send a request by an EV
-buyer = ACCOUNTS_LIST[randint(1, 4)]
-nonce = w3.eth.getTransactionCount(buyer)
-print("[PROCESSING] Calculating Gas Price...")
-gas_price = w3.eth.generateGasPrice()
-print("[COMPLETE] Gas Price: ", gas_price)
-tr = {
-    'from': buyer,
-    'nonce': Web3.toHex(nonce),
-    'gasPrice': gas_price,
-}
-print(f"Nonce: {nonce}")
+async def log_loop(event_filter, poll_interval):
+    global tr
+    global nonce
+    global count
+    # Send a request by an EV
+    price = send_ev_request(tr, buyer)
+    while True:
+        for LogReqCreated in event_filter.get_new_entries():
+            if buyer == LogReqCreated['args']['buyer'] and price == LogReqCreated['args']['_maxPrice']:
+                count += 1
+                # Close the Auction
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                close_auction(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    LogReqCreated['args']['_time'],
+                    tr)
 
-time_close = send_ev_request(tr, buyer, auc_id)
+                # End Reveal
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                end_reveal(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    tr)
 
-# Close the Auction
-nonce += 1
-tr['nonce'] = Web3.toHex(nonce)
-close_auction(buyer, auc_id, time_close, tr)
+                # Begin Double Auction
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                double_auction(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    tr)
+                if count == 1:
+                    break
+        await asyncio.sleep(poll_interval)
+        if count == 1:
+            break
 
-# End Reveal
-nonce += 1
-tr['nonce'] = Web3.toHex(nonce)
-end_reveal(buyer, auc_id, tr)
 
-# Begin Double Auction
-nonce += 1
-tr['nonce'] = Web3.toHex(nonce)
-double_auction(buyer, auc_id, tr)
+# main function
+# creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
+# try to run log_loop function above every 2 secs
+def main():
+    event_filter = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')
+    loop = asyncio.get_event_loop()
+    try:
+        loop.run_until_complete(
+            asyncio.gather(
+                log_loop(event_filter, 2)))
+    finally:
+        loop.close()
+
+
+
+# main function init
+main()

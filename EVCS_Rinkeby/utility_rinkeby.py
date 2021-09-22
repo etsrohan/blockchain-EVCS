@@ -6,6 +6,7 @@ import json
 import asyncio
 import time
 from random import randint
+import threading
 
 ## Global Variables
 INFURA_URL  = "https://rinkeby.infura.io/v3/ec9d7ab198984284b62af4c1f4e27763"
@@ -64,12 +65,14 @@ print("[PROCESSING] Proceeding to Utility program!")
 
 print("[PROCESSING] Calculating Gas Price for Transactions...")
 gas_price = w3.eth.generateGasPrice()
+nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+nonce -= 1
 print("[COMPLETE] Gas Price: ", gas_price)
 print("\nWaiting for Double Auction to Begin...")
 
 # Function to Update Balances
-def update_balance(event):
-    auc_id = event['args']['_aucId']
+def update_balance(auc_id):
+    global nonce
     buyer = evchargingmarket.functions.contracts(auc_id).call()[0]
     seller = evchargingmarket.functions.contracts(auc_id).call()[1]
 
@@ -77,7 +80,7 @@ def update_balance(event):
         print(f"\n[ID: {auc_id}][ERROR] Invalid Transaction. Min Bid not less than Buyer Price.")
 
         # Send out RequestFailed Event to let the buyer know to re-send a request
-        nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+        nonce += 1
         tr = {
             'from': ACCOUNTS_LIST[0],
             'nonce': Web3.toHex(nonce),
@@ -92,7 +95,7 @@ def update_balance(event):
     else:
         # If Contract is in ReadyForPayment State; Proceed with payment
         if evchargingmarket.functions.contracts(auc_id).call()[10] == 4:
-            nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+            nonce += 1
             tr = {
                 'from': ACCOUNTS_LIST[0],
                 'nonce': Web3.toHex(nonce),
@@ -119,10 +122,9 @@ def update_balance(event):
             print("Buyer balance: ", evchargingmarket.functions.accounts(buyer).call()[0])
 
 # Function to Send Seller And Buyer Meter Reports
-def send_reports(event):
-    auc_id = event['args']['_aucId']
-
-    nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
+def send_reports(auc_id):
+    global nonce
+    nonce += 1
     tr = {
         'from': ACCOUNTS_LIST[0],
         'nonce': Web3.toHex(nonce),
@@ -148,18 +150,24 @@ def send_reports(event):
 async def log_loop1(event_filter, poll_interval):
     while True:
         for DoubleAuctionStart in event_filter.get_new_entries():
-            send_reports(DoubleAuctionStart)
+            thread = threading.Thread(
+                target = send_reports,
+                args = (DoubleAuctionStart['args']['_aucId'],))
+            thread.start()
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
     while True:
         for ReportOk in event_filter.get_new_entries():
-            update_balance(ReportOk)
+            thread = threading.Thread(
+                target = update_balance,
+                args = (ReportOk['args']['_aucId'],))
+            thread.start()
         await asyncio.sleep(poll_interval)
 
 
 # main function
-# creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
+# creates a filter for the latest block and looks for "DoubleAuctionStart" and "ReportOk" from EVChargingMarket contract
 # try to run log_loop function above every 2 secs
 def main():
     event_filter1 = evchargingmarket.events.DoubleAuctionStart().createFilter(fromBlock = 'latest')
