@@ -59,7 +59,7 @@ evchargingmarket = w3.eth.contract(
 )
 
 strategy = construct_time_based_gas_price_strategy(15)
-w3.eth.setGasPriceStrategy(strategy)
+w3.eth.set_gas_price_strategy(strategy)
 
 print("[PROCESSING] Proceeding to EV request program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
@@ -67,3 +67,11 @@ print("[PROCESSING] Proceeding to EV request program!")
 print(evchargingmarket.functions.getNumBids(17).call())
 for address in ACCOUNTS_LIST:
     print(evchargingmarket.functions.accounts(address).call())
+
+print("The number of Auctions Processed: ", evchargingmarket.functions.getNumberOfReq().call())
+print("[PROCESSING] Calculating Gas Price for Transactions...")
+gas_price = w3.eth.generate_gas_price()
+print("[COMPLETE] Gas Price: ", gas_price)
+
+nonce = w3.eth.get_transaction_count(ACCOUNTS_LIST[0])
+print("Nonce: ", nonce)

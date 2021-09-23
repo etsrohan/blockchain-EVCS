@@ -6,7 +6,6 @@ import json
 import asyncio
 import time
 from random import randint
-import threading
 
 ## Global Variables
 INFURA_URL  = "https://rinkeby.infura.io/v3/ec9d7ab198984284b62af4c1f4e27763"
@@ -36,6 +35,8 @@ ACCOUNTS_LIST = ["0x013E38F0670e13F252ce2C041239Ca1DdE7DC393",
                  "0x4c3d603edCC98320d9B1D8ef52415FdDb8106cCB",
                  "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642"]
 
+AUCTION_TIME = 30
+
 ABI = json.loads('[{"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "bidder", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}], "name": "BidNotCorrectelyRevealed", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "address", "name": "_buyer", "type": "address"}, {"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}], "name": "ContractEstablished", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "DoubleAuctionStart", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}], "name": "FirstOfferAccepted", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "buyer", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_maxPrice", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_time", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_auctionTime", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_location", "type": "uint256"}], "name": "LogReqCreated", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "_seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_price", "type": "uint256"}, {"indexed": false, "internalType": "uint256", "name": "_amount", "type": "uint256"}], "name": "LowestBidDecreased", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "ReportNotOk", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "ReportOk", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "buyer", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "RequestFailed", "type": "event"}, {"anonymous": false, "inputs": [{"indexed": false, "internalType": "address", "name": "seller", "type": "address"}, {"indexed": false, "internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"indexed": false, "internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}, {"indexed": false, "internalType": "uint256", "name": "_bidId", "type": "uint256"}], "name": "SealedBidReceived", "type": "event"}, {"inputs": [{"internalType": "address", "name": "", "type": "address"}], "name": "accounts", "outputs": [{"internalType": "int256", "name": "balance", "type": "int256"}, {"internalType": "bool", "name": "isUser", "type": "bool"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_user", "type": "address"}, {"internalType": "int256", "name": "_amount", "type": "int256"}], "name": "addBalance", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "closeAuction", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "name": "contracts", "outputs": [{"internalType": "address", "name": "buyer", "type": "address"}, {"internalType": "address", "name": "seller", "type": "address"}, {"internalType": "uint256", "name": "amount", "type": "uint256"}, {"internalType": "uint256", "name": "buyerMaxPrice", "type": "uint256"}, {"internalType": "uint256", "name": "currentPrice", "type": "uint256"}, {"internalType": "bool", "name": "buyerMeterReport", "type": "bool"}, {"internalType": "bool", "name": "sellerMeterReport", "type": "bool"}, {"internalType": "uint256", "name": "deliveryTime", "type": "uint256"}, {"internalType": "uint256", "name": "auctionTimeOut", "type": "uint256"}, {"internalType": "uint256", "name": "deliveryLocation", "type": "uint256"}, {"internalType": "enum EvChargingMarket.ContractState", "name": "state", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_amount", "type": "uint256"}, {"internalType": "uint256", "name": "_price", "type": "uint256"}, {"internalType": "uint256", "name": "_time", "type": "uint256"}, {"internalType": "uint256", "name": "_auctionTime", "type": "uint256"}, {"internalType": "uint256", "name": "_location", "type": "uint256"}], "name": "createReq", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "doubleAuctionBegin", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}], "name": "endReveal", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "address", "name": "buyer", "type": "address"}, {"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "evAuctionFail", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "getAuctionState", "outputs": [{"internalType": "enum EvChargingMarket.AuctionState", "name": "", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_price", "type": "uint256"}], "name": "getHash", "outputs": [{"internalType": "bytes32", "name": "", "type": "bytes32"}], "stateMutability": "pure", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_id", "type": "uint256"}], "name": "getNumBids", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [], "name": "getNumberOfReq", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_index", "type": "uint256"}], "name": "getReq", "outputs": [{"internalType": "enum EvChargingMarket.ContractState", "name": "", "type": "uint8"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bytes32", "name": "_sealedBid", "type": "bytes32"}], "name": "makeSealedOffer", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "address", "name": "_user", "type": "address"}], "name": "registerNewUser", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "uint256", "name": "_price", "type": "uint256"}, {"internalType": "uint256", "name": "_bidId", "type": "uint256"}], "name": "revealOffer", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bool", "name": "_state", "type": "bool"}], "name": "setBuyerMeterReport", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "bool", "name": "_state", "type": "bool"}], "name": "setSellerMeterReport", "outputs": [], "stateMutability": "nonpayable", "type": "function"}, {"inputs": [], "name": "totalAuction", "outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}], "stateMutability": "view", "type": "function"}, {"inputs": [{"internalType": "uint256", "name": "_aucId", "type": "uint256"}, {"internalType": "address", "name": "_buyer", "type": "address"}, {"internalType": "address", "name": "_seller", "type": "address"}], "name": "updateBalance", "outputs": [], "stateMutability": "nonpayable", "type": "function"}]')
 # web3.py instance
 w3 = Web3(Web3.HTTPProvider(INFURA_URL))
@@ -60,131 +61,133 @@ evchargingmarket = w3.eth.contract(
 strategy = construct_time_based_gas_price_strategy(15)
 w3.eth.set_gas_price_strategy(strategy)
 
-print("[PROCESSING] Proceeding to Utility program!")
+print("[PROCESSING] Proceeding to EV request program!")
 # ------------------------------------------Main Program Starts Here------------------------------------------
 
-print("[PROCESSING] Calculating Gas Price for Transactions...")
+buyer = ACCOUNTS_LIST[randint(1, 4)]
+nonce = w3.eth.get_transaction_count(buyer)
+print("[PROCESSING] Calculating Gas Price...")
 gas_price = w3.eth.generate_gas_price()
-nonce = w3.eth.get_transaction_count(ACCOUNTS_LIST[0])
-nonce -= 1
 print("[COMPLETE] Gas Price: ", gas_price)
-print("\nWaiting for Double Auction to Begin...")
+tr = {
+    'from': buyer,
+    'nonce': Web3.toHex(nonce),
+    'gasPrice': gas_price,
+}
+print(f"Nonce: {nonce}")
+count = 0
 
-# Function to Update Balances
-def update_balance(auc_id):
-    global nonce
-    buyer = evchargingmarket.functions.contracts(auc_id).call()[0]
-    seller = evchargingmarket.functions.contracts(auc_id).call()[1]
+# Function to Begin Double Auction
+def double_auction(buyer_address, auc_id, tr):
+    # Begin Double Auction
+    txn = evchargingmarket.functions.doubleAuctionBegin(auc_id).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"[ID: {auc_id}] Double Auction Started!")
+    print("Please Wait for Payment...")
 
-    if evchargingmarket.functions.contracts(auc_id).call()[4] == 0 or seller == None:
-        print(f"\n[ID: {auc_id}][ERROR] Invalid Transaction. Min Bid not less than Buyer Price.")
+# Function to End Reveal Period
+def end_reveal(buyer_address, auc_id, tr):
+    # input("Press ENTER to End the Reveal Period.")
+    time.sleep(15)
 
-        # Send out RequestFailed Event to let the buyer know to re-send a request
-        nonce += 1
-        tr = {
-            'from': ACCOUNTS_LIST[0],
-            'nonce': Web3.toHex(nonce),
-            'gasPrice': gas_price,
-        }
-        print(f"[ID: {auc_id}][ERROR] Sending Message to Buyer (0x...{buyer[-4:]}) for New Request")
-        txn = evchargingmarket.functions.evAuctionFail(buyer, auc_id).buildTransaction(tr)
-        signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
-        tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    # Begin End Reveal
+    txn = evchargingmarket.functions.endReveal(auc_id).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"[ID: {auc_id}] Reveal Ended!")
+    # GO TO BEGIN DOUBLE AUCTION
 
-    else:
-        # If Contract is in ReadyForPayment State; Proceed with payment
-        if evchargingmarket.functions.contracts(auc_id).call()[10] == 4:
-            nonce += 1
-            tr = {
-                'from': ACCOUNTS_LIST[0],
-                'nonce': Web3.toHex(nonce),
-                'gasPrice': gas_price,
-            }
-            print(f"\n[ID: {auc_id}] Updating Buyer and Seller Balances")
-            txn = evchargingmarket.functions.updateBalance(auc_id, buyer, seller).buildTransaction(tr)
-            signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
-            tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-            tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-            amount_charge = evchargingmarket.functions.contracts(auc_id).call()[2]
-            buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
-            seller_price = evchargingmarket.functions.contracts(auc_id).call()[4]
+# Function to close an opened auction
+def close_auction(buyer_address, auc_id, auc_time, tr):
+    print("Your Auction ID is", auc_id)
+    # wait until the auction closes
+    while time.time() < auc_time:
+        time.sleep(2)
+    # close the auction with specified auction id
+    # input("Press Enter to Close the Auction.")
+    txn = evchargingmarket.functions.closeAuction(auc_id).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
+    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    print(f"\n[ID: {auc_id}] Closing the auction now...")
+    # GO TO END REVEAL
 
-            print(f"\n[ID: {auc_id}] Updated balances of Buyer and Seller...")
-            print("Selling Price: ", seller_price)
-            print("Buyer Price: ", buyer_price)
-            print("Exchange price: ", (seller_price + buyer_price) / 2)
-            print("Amount of Charge: ", amount_charge)
-            print(f"\nSeller @ Address: 0x...{ seller[-4:]}")
-            print("Seller balance: ", evchargingmarket.functions.accounts(seller).call()[0])
-            print(f"\nBuyer @ Address: 0x...{buyer[-4:]}")
-            print("Buyer balance: ", evchargingmarket.functions.accounts(buyer).call()[0])
+# Function to randomly select an EV address and send a charging request
+def send_ev_request(tr, buyer_address):
+    print("\n[TRANSACTING] Sending New Request: ")
+    print(f"Buyer Address : 0x...{buyer_address[-4:]}")
 
-# Function to Send Seller And Buyer Meter Reports
-def send_reports(auc_id):
-    global nonce
-    nonce += 1
-    tr = {
-        'from': ACCOUNTS_LIST[0],
-        'nonce': Web3.toHex(nonce),
-        'gasPrice': gas_price,
-    }
-    print(f"\n[ID: {auc_id}] Sending Buyer Meter Report...")
-    txn = evchargingmarket.functions.setBuyerMeterReport(auc_id, True).buildTransaction(tr)
-    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
+    amount = randint(10, 60)
+    price = randint(10, 60)
+    time_close = int(time.time()) + AUCTION_TIME
+    print(f"Buyer Price : {price}")
+
+    # New request ID for new auction
+    txn = evchargingmarket.functions.createReq(amount, price, time_close, AUCTION_TIME, 5).buildTransaction(tr)
+    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[buyer_address])
     tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-    nonce += 1
-    tr['nonce'] = Web3.toHex(nonce)
-    print(f"[ID: {auc_id}] Sending Seller Meter Report...")
-    txn = evchargingmarket.functions.setSellerMeterReport(auc_id, True).buildTransaction(tr)
-    signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
-    tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
-    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+    return price
 
-    print(f"[ID: {auc_id}][SUCCESS] Meter Reports Sent!")
-
-# Async Loops
-async def log_loop1(event_filter, poll_interval):
-    double_auction = []
+async def log_loop(event_filter, poll_interval):
+    global tr
+    global nonce
+    global count
+    # Send a request by an EV
+    price = send_ev_request(tr, buyer)
     while True:
-        for DoubleAuctionStart in event_filter.get_new_entries():
-            if DoubleAuctionStart['args']['_aucId'] not in double_auction:
-                thread = threading.Thread(
-                    target = send_reports,
-                    args = (DoubleAuctionStart['args']['_aucId'],))
-                thread.start()
-                double_auction.append(DoubleAuctionStart['args']['_aucId'])
-        await asyncio.sleep(poll_interval)
+        for LogReqCreated in event_filter.get_new_entries():
+            if buyer == LogReqCreated['args']['buyer'] and price == LogReqCreated['args']['_maxPrice']:
+                count += 1
+                # Close the Auction
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                close_auction(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    LogReqCreated['args']['_time'],
+                    tr)
 
-async def log_loop2(event_filter, poll_interval):
-    reports_sent = []
-    while True:
-        for ReportOk in event_filter.get_new_entries():
-            if ReportOk['args']['_aucId'] not in reports_sent:
-                thread = threading.Thread(
-                    target = update_balance,
-                    args = (ReportOk['args']['_aucId'],))
-                thread.start()
-                reports_sent.append(ReportOk['args']['_aucId'])
+                # End Reveal
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                end_reveal(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    tr)
+
+                # Begin Double Auction
+                nonce += 1
+                tr['nonce'] = Web3.toHex(nonce)
+                double_auction(
+                    buyer,
+                    LogReqCreated['args']['_aucId'],
+                    tr)
+                if count == 1:
+                    break
         await asyncio.sleep(poll_interval)
+        if count == 1:
+            break
 
 
 # main function
-# creates a filter for the latest block and looks for "DoubleAuctionStart" and "ReportOk" from EVChargingMarket contract
+# creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract
 # try to run log_loop function above every 2 secs
 def main():
-    event_filter1 = evchargingmarket.events.DoubleAuctionStart().createFilter(fromBlock = 'latest')
-    event_filter2 = evchargingmarket.events.ReportOk().createFilter(fromBlock = 'latest')
+    event_filter = evchargingmarket.events.LogReqCreated().createFilter(fromBlock = 'latest')
     loop = asyncio.get_event_loop()
     try:
         loop.run_until_complete(
             asyncio.gather(
-                log_loop1(event_filter1, 2), log_loop2(event_filter2, 2)))
+                log_loop(event_filter, 2)))
     finally:
         loop.close()
+
 
 
 # main function init
