@@ -58,7 +58,7 @@ evchargingmarket = w3.eth.contract(
 strategy = construct_time_based_gas_price_strategy(15)
 w3.eth.setGasPriceStrategy(strategy)
 
-print("Connection to Rinkeby Server Successful! Starting Utility Program!")
+print("Connection to Rinkeby Server Successful! Starting Add Balance Program!")
 # -------------------------------------------------------MAIN PROGRAM STARTS HERE-------------------------------------------------------
 nonce = w3.eth.getTransactionCount(ACCOUNTS_LIST[0])
 gas_price = w3.eth.generateGasPrice()
@@ -79,10 +79,11 @@ for address in ACCOUNTS_LIST:
 	tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
+	price = 10000
 	nonce += 1
 	tr['nonce'] = Web3.toHex(nonce)
-	print(f"[PROCESSING] Adding Balance of 100000 to User: {address}")
-	txn = evchargingmarket.functions.addBalance(address, 100000).buildTransaction(tr)
+	print(f"[PROCESSING] Adding Balance of 10000 to User: {address}")
+	txn = evchargingmarket.functions.addBalance(address, price).buildTransaction(tr)
 	signed = w3.eth.account.sign_transaction(txn, ACCOUNTS_DICT[ACCOUNTS_LIST[0]])
 	tx_hash = w3.eth.send_raw_transaction(signed.rawTransaction)
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)

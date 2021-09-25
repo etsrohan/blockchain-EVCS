@@ -148,27 +148,27 @@ def send_reports(auc_id):
 
 # Async Loops
 async def log_loop1(event_filter, poll_interval):
-    double_auction = []
+    double_auction = set()
     while True:
         for DoubleAuctionStart in event_filter.get_new_entries():
-            if DoubleAuctionStart['args']['_aucId'] not in double_auction:
+            if DoubleAuctionStart not in double_auction:
                 thread = threading.Thread(
                     target = send_reports,
                     args = (DoubleAuctionStart['args']['_aucId'],))
                 thread.start()
-                double_auction.append(DoubleAuctionStart['args']['_aucId'])
+                double_auction.add(DoubleAuctionStart)
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
-    reports_sent = []
+    reports_sent = set()
     while True:
         for ReportOk in event_filter.get_new_entries():
-            if ReportOk['args']['_aucId'] not in reports_sent:
+            if ReportOk not in reports_sent:
                 thread = threading.Thread(
                     target = update_balance,
                     args = (ReportOk['args']['_aucId'],))
                 thread.start()
-                reports_sent.append(ReportOk['args']['_aucId'])
+                reports_sent.add(ReportOk)
         await asyncio.sleep(poll_interval)
 
 

@@ -74,8 +74,6 @@ print("\nWaiting for request...")
 # A Dictionary containing all the bids sent by CS's for a particular Auction
 # {Auction_ID -> Seller Address -> Seller Bid}
 auc_dict = {}
-# A List of (Auction ID, Bid ID) Tuple pairs to prevent multiple same Bids from a particular user to be revealed
-bid_list = []
 # The Number of Bids Revealed for a particular Auction ID
 count_reveal = 0
 
@@ -141,7 +139,7 @@ async def log_loop1(event_filter, poll_interval):
     global auc_dict
     while True:
         for LogReqCreated in event_filter.get_new_entries():
-            if LogReqCreated['args']['_aucId'] in auc_dict.keys():
+            if LogReqCreated['args']['_aucId'] in auc_dict:
                 continue
             auc_dict[LogReqCreated['args']['_aucId']] = {}
             print(f"\n[ID: {LogReqCreated['args']['_aucId']}] New Request Received!!!")
@@ -158,17 +156,17 @@ async def log_loop1(event_filter, poll_interval):
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
-    global bid_list
+    bid_list = set()
     while True:
         for SealedBidReceived in event_filter.get_new_entries():
-            if (SealedBidReceived['args']['_aucId'], SealedBidReceived['args']['_bidId']) in bid_list:
+            if SealedBidReceived in bid_list:
                 continue
             thread = threading.Thread(target = reveal_offer, args = (
                 SealedBidReceived['args']['_aucId'],
                 SealedBidReceived['args']['seller'],
                 SealedBidReceived['args']['_bidId']))
             thread.start()
-            bid_list.append((SealedBidReceived['args']['_aucId'], SealedBidReceived['args']['_bidId']))
+            bid_list.add(SealedBidReceived)
         await asyncio.sleep(poll_interval)
 
 
