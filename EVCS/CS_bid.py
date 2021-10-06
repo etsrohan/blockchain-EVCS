@@ -26,8 +26,7 @@ evchargingmarket = w3.eth.contract(
 accounts_list = w3.eth.get_accounts()
 
 # separating the EV addresses 2/3rd of the network
-separator = int((len(w3.eth.get_accounts()) - 1) / 3) + 1
-CS_addresses = accounts_list[1 : separator]
+CS_addresses = accounts_list[5 : ]
 
 # dictionaries to hold auction information
 auc_dict = {}
@@ -101,7 +100,6 @@ def handle_event(auc_id, _time, buyer, max_price):
 
     # get the auction ID from event
     index = 0
-    buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
 
     # every CS sends in a bid for now with random prices from 0 - _maxPrice
     for seller_address in CS_addresses:

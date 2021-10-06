@@ -5,8 +5,8 @@ from random import randint
 import asyncio
 import threading
 
-AUCTION_TIME = 30
-POLL_INTERVAL = 15
+AUCTION_TIME = 10
+POLL_INTERVAL = 5
 
 with open("address.info", "r") as file_obj:
     file_info = file_obj.readlines()
@@ -27,8 +27,7 @@ evchargingmarket = w3.eth.contract(
 accounts_list = w3.eth.get_accounts()
 
 # separating the EV addresses 2/3rd of the networks
-separator = int((len(w3.eth.get_accounts()) - 1) / 3) + 1
-EV_addresses = accounts_list[separator : ]
+EV_addresses = accounts_list[1 : 5]
 
 # Function to close an opened auction
 def close_auction(buyer_address, auc_id, auc_time, price):

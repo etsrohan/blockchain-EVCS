@@ -23,13 +23,22 @@ w3.eth.default_account = w3.eth.accounts[0]
 
 EVChargingMarket = w3.eth.contract(abi=abi, bytecode=bytecode)
 
+print("Deploying Smart Contract...")
 # submit transaction that deploys the contract
 tx_hash = EVChargingMarket.constructor().transact()
 
 # wait for the transaction to be mined and get the transaction receipt
 tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
+print("Saving Smart Contract Info...")
 with open("address.info", "w") as file_obj:
 	file_obj.write(tx_receipt.contractAddress)
 	file_obj.write('\n')
 	file_obj.write(json.dumps(abi))
+print("Contract Info Saved!")
+
+evchargingmarket = w3.eth.contract(
+	address = tx_receipt.contractAddress,
+	abi = abi,)
+
+print("[SUCCESS] Contract Deployed Successfully!")
