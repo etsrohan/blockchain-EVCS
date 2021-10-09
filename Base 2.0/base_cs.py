@@ -2,7 +2,6 @@
 import json
 from web3 import Web3
 import asyncio
-from eth_tester import EthereumTester
 from random import randint
 import time
 

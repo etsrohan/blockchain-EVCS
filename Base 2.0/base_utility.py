@@ -2,9 +2,12 @@
 import json
 from web3 import Web3
 import asyncio
-from eth_tester import EthereumTester
 from random import randint
 import time
+import threading
+
+AUCTION_TIME = 15
+
 
 with open("address.info", "r") as file_obj:
     file_info = file_obj.readlines()
@@ -21,51 +24,79 @@ evchargingmarket = w3.eth.contract(
     abi = abi
 )
 
-curr_block = 0
-prev_block = 0
-curr_time = time.time()
-prev_time = 0
-
-# Infinite loop of waiting for meter reports to come back and update balance of seller/buyer
-print("\nWaiting for meter reports to come back as ok...")
-def handle_event(event):
-	global prev_block
-	global curr_block
-	global prev_time
-	global curr_time
-
-	auc_id = event['args']['_aucId']
-	buyer_address = (evchargingmarket.functions.contracts(auc_id).call())[0]
-	seller_address = (evchargingmarket.functions.contracts(auc_id).call())[1]
-
-	tx_hash = evchargingmarket.functions.updateBalance(auc_id, buyer_address, seller_address).transact()
+# ------------------------------------Main Program------------------------------------
+print("\n[UTILITY] STARTING PROGRAM...")
+def open_auction():
+	print("\n[Processing] Opening new Auction...")
+	tx_hash = evchargingmarket.functions.createReq(int(time.time()), AUCTION_TIME).transact()
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
 
-	# Getting number of transactions per second
-	prev_block = curr_block
-	curr_block = w3.eth.blockNumber
-	prev_time = curr_time
-	curr_time = evchargingmarket.functions.contracts(auc_id).call()[8]
-	transactions_per_second = (curr_block - prev_block) / (curr_time - prev_time)
+def close_auction(auc_id, close_time):
+	print(f"\n[ID:{auc_id}] Waiting for Auction Close Time...")
+	# Wait until auction closing time
+	while True:
+		if time.time() > close_time:
+			break
+		time.sleep(2)
+	tx_hash = evchargingmarket.functions.closeAuction(auc_id).transact()
+	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+	print(f"\n[ID:{auc_id}] CLOSING AUCTION NOW!")
 
-	print("\nUpdated balances of buyer and seller...")
-	print("Seller balance: ", evchargingmarket.functions.accounts(seller_address).call()[0])
-	print("Buyer balance: ", evchargingmarket.functions.accounts(buyer_address).call()[0])
-	print("Total Transactions: ", curr_block - prev_block)
-	print("Transactions Per Second: ", transactions_per_second)
+	close_reveal(auc_id)
 
+def close_reveal(auc_id):
+	print(f"\n[ID:{auc_id}] Waiting for Reveal Period to End...")
+	time.sleep(10)
+
+	tx_hash = evchargingmarket.functions.endReveal(auc_id).transact()
+	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+	print(f"\n[ID:{auc_id}] ENDING REVEAL NOW!")
+
+	meter_reports(auc_id)
+
+def meter_reports(auc_id):
+	print(f"\n[ID:{auc_id}] Sending Buyer Meter Report...")
+
+	tx_hash = evchargingmarket.functions.setBuyerMeterReport(auc_id, True).transact()
+	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+	print(f"\n[ID:{auc_id}] Sending Selelr Meter Report...")
+	tx_hash = evchargingmarket.functions.setSellerMeterReport(auc_id, True).transact()
+	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+	print(f"\n[ID:{auc_id}][SUCCESS] Meter Reports SENT!")
+
+def handle_event(auc_id):
+	print(f"\n[ID:{auc_id}] New Reports OK!")
 
 async def log_loop(event_filter, poll_interval):
     while True:
         for report_ok in event_filter.get_new_entries():
-            handle_event(report_ok)
+        	thread = threading.Thread(target = handle_event, args = (
+        		report_ok['args']['_aucId'],))
+        	thread.start()
         await asyncio.sleep(poll_interval)
 
-event_filter = evchargingmarket.events.ReportOk().createFilter(fromBlock = 'latest')
+async def log_loop2(event_filter, poll_interval):
+    thread = threading.Thread(target = open_auction, args = ())
+    thread.start()
+    while True:
+        for new_auction in event_filter.get_new_entries():
+        	thread = threading.Thread(target = close_auction, args = (
+        		new_auction['args']['_aucId'],
+        		new_auction['args']['_auctionTime']))
+        	thread.start()
+        # time.sleep(2)
+        # thread = threading.Thread(target = open_auction, args = ())
+        # thread.start()
+        await asyncio.sleep(poll_interval)
+
+event_filter1 = evchargingmarket.events.ReportOk().createFilter(fromBlock = 'latest')
+event_filter2 = evchargingmarket.events.NewAuctionCreated().createFilter(fromBlock = 'latest')
 loop = asyncio.get_event_loop()
 try:
     loop.run_until_complete(
         asyncio.gather(
-            log_loop(event_filter, 2)))
+            log_loop(event_filter1, 2), log_loop2(event_filter2, 4)))
 finally:
     loop.close()

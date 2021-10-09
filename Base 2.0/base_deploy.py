@@ -1,6 +1,5 @@
 from web3 import Web3
 from solcx import compile_source
-from eth_tester import EthereumTester
 import json
 import asyncio
 import time
@@ -52,9 +51,14 @@ print("[SUCCESS] Smart Contract Detailes Saved!")
 accounts_list = w3.eth.get_accounts()
 
 # register all known EVs and CSs
-print("Registering all users and adding initial balance")
-for user_address in accounts_list[1:]:
+print("Registering all EVs and adding initial balance of 1,000,000")
+for user_address in accounts_list[1:5]:
 	evchargingmarket.functions.registerNewUser(user_address).transact()
-	evchargingmarket.functions.addBalance(user_address, 1000000).transact()
+	evchargingmarket.functions.addBalance(user_address, 1000000, 0).transact()
+
+print("Registering all CSs and adding initial energy 100,000")
+for user_address in accounts_list[5:]:
+	evchargingmarket.functions.registerNewUser(user_address).transact()
+	evchargingmarket.functions.addBalance(user_address, 0, 100000).transact()
 
 print("[SUCCESS] Smart Contract Deployed!")

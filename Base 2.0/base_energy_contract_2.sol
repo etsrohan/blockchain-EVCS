@@ -291,7 +291,7 @@ contract EvChargingMarket {
         auctions[_id].state = AuctionState.Created;                                             // Updating contract and auction states to created
         auctions[_id].nbBid = 0;                                                                // initializing the initial number of bids
         auctions[_id].nbReq = 0;
-        emit NewAuctionCreated(_id, _time, _auctionTime);                                       // send out message to all listening that a new request was created
+        emit NewAuctionCreated(_id, _time, contracts[_id].auctionTimeOut);                                       // send out message to all listening that a new request was created
     }
 
     function addBalance(address _user, int256 _amount, int256 _energy) public           // This function adds a certain amount of money and energy to the user's account
