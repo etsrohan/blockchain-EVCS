@@ -7,7 +7,7 @@ import time
 import threading
 
 AUCTION_TIME = 15
-
+REVEAL_TIME = 10
 
 with open("address.info", "r") as file_obj:
     file_info = file_obj.readlines()
@@ -46,7 +46,7 @@ def close_auction(auc_id, close_time):
 
 def close_reveal(auc_id):
 	print(f"\n[ID:{auc_id}] Waiting for Reveal Period to End...")
-	time.sleep(10)
+	time.sleep(REVEAL_TIME)
 
 	tx_hash = evchargingmarket.functions.endReveal(auc_id).transact()
 	tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
@@ -86,6 +86,7 @@ async def log_loop2(event_filter, poll_interval):
         		new_auction['args']['_aucId'],
         		new_auction['args']['_auctionTime']))
         	thread.start()
+        	print(f"[Active Processes] {threading.active_count() - 1}")
         # time.sleep(2)
         # thread = threading.Thread(target = open_auction, args = ())
         # thread.start()

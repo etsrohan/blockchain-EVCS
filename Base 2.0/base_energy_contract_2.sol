@@ -314,5 +314,10 @@ contract EvChargingMarket {
     {
         return auctions[_id].nbBid;
     }
+    
+    function getNumReqs(uint256 _id) public view returns(uint256) 
+    {
+        return auctions[_id].nbReq;
+    }
 
 }

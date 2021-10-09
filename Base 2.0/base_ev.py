@@ -3,6 +3,7 @@ import json
 import time
 import asyncio
 from random import randint
+import threading
 
 with open("address.info", "r") as file_obj:
 	file_info = file_obj.readlines()
@@ -23,33 +24,88 @@ evchargingmarket = w3.eth.contract(
 	abi = abi
 )
 
-# testing to see if contract connected properly
-# print(evchargingmarket.functions.getNumberOfReq().call())
+# -----------------------------------------MAIN PROGRAM-----------------------------------------
 
 # getting the list of all accounts on the network
 accounts_list = w3.eth.get_accounts()
 
+print("\nWaiting for New Auction To Begin")
 # separating the EV addresses 2/3rd of the networks
-separator = int((len(w3.eth.get_accounts()) - 1) / 3) + 1
-EV_addresses = accounts_list[separator : ]
+EV_addresses = accounts_list[1: 5]
+buyer_dict = {}
 
-while True:
-    for addr in EV_addresses:
-        # lets try to create a charging request by user
-        request_id = evchargingmarket.functions.getNumberOfReq().call()
-        w3.eth.default_account = addr
-        auction_time = 30
+def send_sealed_req(buyer, auc_id, auc_time):
+    global buyer_dict
 
-        tx_hash = evchargingmarket.functions.createReq(100, 10, int(time.time()) + auction_time, auction_time, 5).transact()	# Random values for now to see if contract is created
+    if time.time() < auc_time:
+        print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] Sending Sealed Request...")
+
+        # Determining Price using random number and storing it in buyer_dict
+        price = randint(10, 60)
+        buyer_dict[auc_id][buyer] = price
+
+        # Getting Hash of Buyer Price
+        sealed_req = evchargingmarket.functions.getHash(price).call({'from': buyer})
+
+        tx_hash = evchargingmarket.functions.makeSealedRequest(auc_id, sealed_req).transact({'from': buyer})
         tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        print("\nNew Request for charging! Auction ID: ", request_id)
-        evchargingmarket.events.LogReqCreated().processReceipt(tx_receipt)
+        print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] Sealed Request Successfully Sent!")
+    else:
+        print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] ERROR: Sealed Request UNSUCCESSFUL!")
 
-        # sleep this program until auction is over
-        time.sleep(auction_time)
+def reveal_req(buyer, auc_id, req_id):
+    global buyer_dict
+    print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] Waiting for Auction to Close...")
+    # Wait until auction is closed to reveal request
+    while True:
+        if evchargingmarket.functions.getAuctionState(auc_id).call():
+            break
+        time.sleep(2)   # Check every 2 seconds
 
-        # close the Auction for the request
-        tx_hash = evchargingmarket.functions.closeAuction(request_id).transact()
-        tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-        print("\nClosing the auction now...")
-        # time.sleep(10)
+    print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] Revealing Request...")
+
+    price = buyer_dict[auc_id][buyer]
+    amount = randint(10, 60)
+
+    # function revealReq(uint _aucId, uint _price, uint _amount, uint _location, uint _reqId)
+    tx_hash = evchargingmarket.functions.revealReq(auc_id, price, amount, 1, req_id).transact({'from': buyer})
+    tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
+
+    print(f"\n[ID:{auc_id}][0x...{buyer[-4:]}] Request Revealed for: \nPrice: {price}\nAmount: {amount}\nRequest ID: {req_id}")
+
+# Asynchronous Detection of Events Starts
+async def log_loop(event_filter, poll_interval):
+    while True:
+        # event SealedReqReceived(address buyer, uint _aucId, bytes32 _sealedReq, uint _reqId);
+        for sealed_req in event_filter.get_new_entries():
+            thread = threading.Thread(target = reveal_req, args = (
+                sealed_req['args']['buyer'],
+                sealed_req['args']['_aucId'],
+                sealed_req['args']['_reqId']))
+            thread.start()
+        await asyncio.sleep(poll_interval)
+
+async def log_loop2(event_filter, poll_interval):
+    global buyer_dict
+    while True:
+        # event NewAuctionCreated(uint _aucId, uint256 _time, uint256 _auctionTime);
+        for new_auction in event_filter.get_new_entries():
+            buyer_dict[new_auction['args']['_aucId']] = {}
+            for buyer_address in EV_addresses:
+                thread = threading.Thread(target = send_sealed_req, args = (
+                    buyer_address,
+                    new_auction['args']['_aucId'],
+                    new_auction['args']['_auctionTime']))
+                thread.start()
+            print(f"[Active Processes] {threading.active_count() - 1}")
+        await asyncio.sleep(poll_interval)
+
+event_filter1 = evchargingmarket.events.SealedReqReceived().createFilter(fromBlock = 'latest')
+event_filter2 = evchargingmarket.events.NewAuctionCreated().createFilter(fromBlock = 'latest')
+loop = asyncio.get_event_loop()
+try:
+    loop.run_until_complete(
+        asyncio.gather(
+            log_loop(event_filter1, 2), log_loop2(event_filter2, 2)))
+finally:
+    loop.close()
