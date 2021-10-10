@@ -152,7 +152,7 @@ async def log_loop1(event_filter, poll_interval):
                     seller_address))
                 thread.start()
             print(f"\n[Active Processes] {threading.active_count() - 1}\n")
-            print(auc_dict)
+            # print(auc_dict)
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
