@@ -124,8 +124,6 @@ async def log_loop1(event_filter, poll_interval):
         await asyncio.sleep(poll_interval)
 
 async def log_loop2(event_filter, poll_interval):
-    thread = threading.Thread(target = open_auction, args = ())
-    thread.start()
     while True:
         for new_auction in event_filter.get_new_entries():
         	thread = threading.Thread(target = close_auction, args = (
@@ -133,10 +131,10 @@ async def log_loop2(event_filter, poll_interval):
         		new_auction['args']['_auctionTime']))
         	thread.start()
         	print(f"\n[Active Processes] {threading.active_count() - 1}\n")
-        # time.sleep(2)
-        # thread = threading.Thread(target = open_auction, args = ())
-        # thread.start()
         await asyncio.sleep(poll_interval)
+        thread = threading.Thread(target = open_auction, args = ())
+        thread.start()
+        await asyncio.sleep(5)
 
 event_filter = evchargingmarket.events.PaymentSuccess().createFilter(fromBlock = 'latest')
 event_filter1 = evchargingmarket.events.PaymentFailure().createFilter(fromBlock = 'latest')
