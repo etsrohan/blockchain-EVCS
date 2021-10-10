@@ -112,15 +112,17 @@ contract EvChargingMarket {
     mapping (uint => Auction)  auctions;            // mapping from Auction ID to auction struct
     mapping (address => Account) public accounts;   // mapping from buyer/seller to accounts struct (buyer/seller accounts)
 
-    event NewAuctionCreated(uint _aucId, uint256 _time, uint256 _auctionTime);         // event for new EV request creation
-    event LowestBidDecreased (address _seller, uint _aucId, uint _price, uint _amount);                                                         // event for new winner of auction
-    event FirstOfferAccepted (address _seller, uint _aucId, uint _price, uint _amount);                                                         // event for first charging station sending successful bid
-    event ContractEstablished (uint _aucId, address _buyer, address _seller);                                                                   // not used currently
+    event NewAuctionCreated(uint _aucId, uint256 _time, uint256 _auctionTime);            // event for new EV request creation
+    event LowestBidDecreased (address _seller, uint _aucId, uint _price, uint _amount);   // event for new winner of auction
+    event FirstOfferAccepted (address _seller, uint _aucId, uint _price, uint _amount);   // event for first charging station sending successful bid
+    event ContractEstablished (uint _aucId, address _buyer, address _seller);             // not used currently
     event ReportOk(uint _aucId);                                                                    
-    event ReportNotOk(uint _aucId);                                                                                                             // buyer/seller connection for payment go ahead / not go ahead
-    event SealedBidReceived(address seller, uint _aucId, bytes32 _sealedBid, uint _bidId);                                                      // new bid from CS received
+    event ReportNotOk(uint _aucId);                                                       // buyer/seller connection for payment go ahead / not go ahead
+    event SealedBidReceived(address seller, uint _aucId, bytes32 _sealedBid, uint _bidId);// new bid from CS received
     event SealedReqReceived(address buyer, uint _aucId, bytes32 _sealedReq, uint _reqId);
-    event BidNotCorrectelyRevealed(address bidder, uint _price, bytes32 _sealedBid);                                                            // event to show failure of bid reveal
+    event BidNotCorrectelyRevealed(address bidder, uint _price, bytes32 _sealedBid);      // event to show failure of bid reveal (currently used for testing code)
+    event PaymentSuccess(uint _aucId, address buyer, address seller, uint _bprice, uint _aprice, uint _energy); // event for successful payment
+    event PaymentFailure(uint _aucId, address buyer, address seller, uint _bprice, uint _aprice, uint _energy);
 
     function createReq(uint256 _time, uint256 _auctionTime) public   // Creates a new auction by an EV
     {
@@ -262,6 +264,15 @@ contract EvChargingMarket {
                 accounts[seller].payments.push(Payment(_aucId, date, amount, false, amountToPay));     // payment added to seller ledger (false is for bool toPay - is receiving)
                 accounts[seller].balance += int256(amountToPay);                                       // payment added to seller balance   
                 accounts[seller].energy -= int256(amount);
+                emit PaymentSuccess(_aucId, buyer, seller, contracts[_aucId].buyers[i].price, contracts[_aucId].secondLowestPrice, amount);
+            }
+            else{
+            	emit PaymentFailure(_aucId,
+            			    contracts[_aucId].buyers[i].addr,
+            			    contracts[_aucId].seller,
+            			    contracts[_aucId].buyers[i].price,
+            			    contracts[_aucId].secondLowestPrice,
+            			    contracts[_aucId].buyers[i].amount);
             }
         }
         contracts[_aucId].state = ContractState.Closed;                                         // closing the contract so no more bids or transactions can happen

@@ -26,11 +26,20 @@ evchargingmarket = w3.eth.contract(
 )
 
 # -----------------------------------------MAIN PROGRAM-----------------------------------------
-auc_id = 1
+# getting the list of all accounts on the network
+accounts_list = w3.eth.get_accounts()
+
+# for account in accounts_list[1:]:
+#     print(f"\nUser Info:\nAddress: {account}\nBalance: {evchargingmarket.functions.accounts(account).call()}")
+
+auc_id = 0
 
 print(evchargingmarket.functions.contracts(auc_id).call())
-print(evchargingmarket.functions.getNumBids(auc_id).call())
-print(evchargingmarket.functions.getNumReqs(auc_id).call())
+print(evchargingmarket.functions.contracts(auc_id).call()[2])
+print(evchargingmarket.functions.contracts(auc_id).call()[1])
+print(evchargingmarket.functions.contracts(auc_id).call()[4])
+# print(evchargingmarket.functions.getNumBids(auc_id).call())
+# print(evchargingmarket.functions.getNumReqs(auc_id).call())
 
 # def handle_event(event):
 #     print("\n")

@@ -97,7 +97,7 @@ async def log_loop2(event_filter, poll_interval):
                     new_auction['args']['_aucId'],
                     new_auction['args']['_auctionTime']))
                 thread.start()
-            print(f"[Active Processes] {threading.active_count() - 1}")
+            print(f"\n[Active Processes] {threading.active_count() - 1}\n")
         await asyncio.sleep(poll_interval)
 
 event_filter1 = evchargingmarket.events.SealedReqReceived().createFilter(fromBlock = 'latest')
