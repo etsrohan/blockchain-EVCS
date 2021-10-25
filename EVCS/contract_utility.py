@@ -25,11 +25,18 @@ evchargingmarket = w3.eth.contract(
 # get all accounts addresses on network
 accounts_list = w3.eth.get_accounts()
 
+
+separator = len(accounts_list) // 2
 # register all known EVs and CSs
 print("\nRegistering all users and adding initial balance")
-for user_address in accounts_list[1:]:
+# EVS have 1,000,000 money and 0 charge at start
+for user_address in accounts_list[1:separator]:
 	evchargingmarket.functions.registerNewUser(user_address).transact()
-	evchargingmarket.functions.addBalance(user_address, 1000000).transact()
+	evchargingmarket.functions.addBalance(user_address, 1000000, 0).transact()
+# CSs have 0 money and 1,000 charge at start
+for user_address in accounts_list[separator:]:
+    evchargingmarket.functions.registerNewUser(user_address).transact()
+    evchargingmarket.functions.addBalance(user_address, 0, 1000).transact()
 
 
 curr_block = 0
@@ -74,8 +81,10 @@ def handle_event(event):
 		print("Amount of Charge: ", amount_charge)
 		print("\nSeller @ Address: ", seller_address)
 		print("Seller balance: ", evchargingmarket.functions.accounts(seller_address).call()[0])
+		print("Seller charge: ", evchargingmarket.functions.accounts(seller_address).call()[1])
 		print("\nBuyer @ Address", buyer_address)
 		print("Buyer balance: ", evchargingmarket.functions.accounts(buyer_address).call()[0])
+		print("Buyer charge: ", evchargingmarket.functions.accounts(buyer_address).call()[1])
 		# print("Total Transactions: ", curr_block - prev_block)
 		# print("Transactions Per Second: ", transactions_per_second)
 

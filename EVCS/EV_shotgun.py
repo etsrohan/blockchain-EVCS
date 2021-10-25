@@ -48,6 +48,8 @@ def send_ev_request(buyer_address = None, _id = None):
     # Creating charging request by a random user
     if buyer_address == None:
         buyer_address = EV_addresses[randint(0, len(EV_addresses) - 1)]
+    elif _id == None:
+        print("\nSending new request from EV @ address:", buyer_address)
     else:
         print("\n[ERROR]: Auction Failed! Auction ID: ", _id)
         print("Resending request for address: ", buyer_address)
@@ -58,13 +60,21 @@ def send_ev_request(buyer_address = None, _id = None):
     # New request ID for new auction
     tx_hash = evchargingmarket.functions.createReq(amount, price, int(time.time()) + AUCTION_TIME, AUCTION_TIME, 5).transact({'from': buyer_address})
     tx_receipt = w3.eth.wait_for_transaction_receipt(tx_hash)
-    print("\nNew request from EV")
 
 
 # asynchronous defined function to loop
 # this func. sets up an event filter and is looking for new entries for the event "LogReqCreated" and "RequestFailed"
 # this loop runs on a poll interval
 async def log_loop(event_filter, poll_interval, select):
+    # Send 5 requests at the same time by using threads
+    if select == 1:
+        request_list = []
+        for address in EV_addresses:            
+            thread = threading.Thread(target = send_ev_request, args = (address,))
+            request_list.append(thread)
+        for thread in request_list:
+            thread.start()
+        print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
     while True:
         for event in event_filter.get_new_entries():
             if event['event'] == 'LogReqCreated':
@@ -78,13 +88,7 @@ async def log_loop(event_filter, poll_interval, select):
                                           args = (event['args']['buyer'],
                                                   event['args']['_id']))
             thread.start()
-        if select == 1:
-            thread = threading.Thread(target = send_ev_request, args = ())
-            thread.start()
-            await asyncio.sleep(poll_interval)
-            print(f"[ACTIVE CONNECTIONS] {threading.active_count() - 1}")
-        else:
-            await asyncio.sleep(2)
+        await asyncio.sleep(2)
 
 # main function
 # creates a filter for the latest block and looks for "LogReqCreated" from EVChargingMarket contract

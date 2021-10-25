@@ -25,8 +25,9 @@ evchargingmarket = w3.eth.contract(
 # getting the list of all accounts on the network
 accounts_list = w3.eth.get_accounts()
 
+separator = len(accounts_list) // 2
 # separating the EV addresses 2/3rd of the network
-CS_addresses = accounts_list[5 : ]
+CS_addresses = accounts_list[separator : ]
 
 # dictionaries to hold auction information
 auc_dict = {}

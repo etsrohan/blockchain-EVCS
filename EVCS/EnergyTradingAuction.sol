@@ -19,11 +19,11 @@ contract EvChargingMarket {
 
     struct Account { // User account
         int256 balance;
+        int256 energy;
         Payment[] payments;
         bool isUser;
     }
     
-   
     struct Auction {
         uint nbBid;
         SealedBid[] bids;
@@ -110,6 +110,7 @@ contract EvChargingMarket {
     	uint256 _auctionTime,
     	uint _location
     );
+    
     event LowestBidDecreased (	// event for new winner of auction
     	address _seller,
     	uint _aucId,
@@ -291,8 +292,10 @@ contract EvChargingMarket {
         uint amountToPay = amount * (contracts[_aucId].currentPrice + contracts[_aucId].buyerMaxPrice) / 2;                        // amountToPay is money owed = electricity in kwh * rate ((lowest price + ev_bid) / 2)
         accounts[_buyer].payments.push(Payment(_aucId, date, amount, true, amountToPay));       // payment added to buyer ledger (true is for bool toPay)
         accounts[_buyer].balance -= int256(amountToPay);                                        // payment amount subtracted from balance
+        accounts[_buyer].energy += int256(amount);
         accounts[_seller].payments.push(Payment(_aucId, date, amount, false, amountToPay));     // payment added to seller ledger (false is for bool toPay - is receiving)
         accounts[_seller].balance += int256(amountToPay);                                       // payment added to seller balance
+        accounts[_seller].energy -= int256(amount);
         contracts[_aucId].state = ContractState.Closed;                                         // closing the contract so no more bids or transactions can happen
     }
 
@@ -347,13 +350,15 @@ contract EvChargingMarket {
         emit LogReqCreated(_buyer, _id, _price, _amount, _time, _auctionTime, _location);       // send out message to all listening that a new request was created
     }
 
-    function addBalance(	// This function adds a certain amount of money to the user's account
+    function addBalance(	// This function adds a certain amount of money and energy to the user's account
     	address _user,
-    	int256 _amount
+    	int256 _amount,
+        int256 _energy
     )
     	public
     {
         accounts[_user].balance += _amount;
+        accounts[_user].energy += _energy;
     }
 
     function getHash(	// This function returns the hashed version of given price value
