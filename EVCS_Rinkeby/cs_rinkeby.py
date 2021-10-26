@@ -25,7 +25,17 @@ ACCOUNTS_DICT = {"0x013E38F0670e13F252ce2C041239Ca1DdE7DC393": "b22e9f365e9e2512
                  "0xFD4271113d4635f6adf9482E2819A450eB2d831A": "13b4584305a62f7604c1019a30f3b4db0a2332b5fa6dda3500a88390da27bcde",
                  "0xeF4b3BC22F5583266eB26eb623FB7b23d5d43ae7": "a8ff2bfd534fca0091bc0f199a7e09f7dc6c6d953582001d584ad541efb57fb8",
                  "0x4c3d603edCC98320d9B1D8ef52415FdDb8106cCB": "5fd2537650d85b9f698f1f151cc759a28577413ce7bd9f39755143afdef25fe3",
-                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642": "72c5c1ad91595866ef9d26c413073f2d8262e327716f4ddd317f330f73dc67c2"}
+                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642": "72c5c1ad91595866ef9d26c413073f2d8262e327716f4ddd317f330f73dc67c2",
+                 "0xbB66eF34814f0613a3B738288FE55553A69C44BA": "bee41af6acfa1c6f430646b8744e2f435f251db087971f38e5d9f2ea3a0b79c4",
+                 "0x6a09436F3Cb7C3e871071033ABA967327499b9d4": "890d4a07e4f4aa790111fe8b2a5d07c84de8a708d51c48487416b892b905c010",
+                 "0x138B9eBeC6DcF3a5293FD6F5846cCBFE7A9e856a": "a2a0d0097c87754d45cff13ecb81f697b30106db553250eea411da48ca5bef4a",
+                 "0xA6e799871576a4337bB1EBf8E0CFe348209A9a1B": "ef741d30314c0cfa147f2c0f409349c587a5a27b4003b8e5cdf0490e6eaa588d",
+                 "0x93e92A2Bc0c66A2887eCF5C918fbbd622491eD23": "64778725d0104b96b58dad5d21bce443b806bf322b4d58d82afc60b279532a0c",
+                 "0xa72e420605FD940b860c493263ce891d434782CB": "a18a2c18ed46edb5b6c4fe2a52a69373c7929b34489ac9b193cc313ff2a01c7d",
+                 "0x2CB3437FcCF9fdd7a77438d232192E2bc2F2a76D": "91b403bd0ced9eff20eb3c8bf388bdc5641fa33978770ac8487ca7406950cb0d",
+                 "0xe1ac1b434331F1c57b909947eC20393819Ad462f": "d1b539ffd7dd1624370b09025ec2f6d649e9c8e7c55077370d696e181effe83a",
+                 "0xD9c258d8aA168add0E5183C9725c1C7C0712868A": "b4d3426cd39722b35050289379616ff6d0dd4e8c6256881a4601daf826d2bab8",
+                 "0xE9003b2Ee7Ee7E33233c05272792a0fE4e5EeE90": "b637439846fab4659ee39e98ab8655f5e2f5ca719c25fb9004426fe9d0a361dd"}
 
 ACCOUNTS_LIST = ["0x013E38F0670e13F252ce2C041239Ca1DdE7DC393",
                  "0x11C9c3Fc3Dab31bf29FdcbCb4D8E3CE48586896F",
@@ -36,7 +46,17 @@ ACCOUNTS_LIST = ["0x013E38F0670e13F252ce2C041239Ca1DdE7DC393",
                  "0xFD4271113d4635f6adf9482E2819A450eB2d831A",
                  "0xeF4b3BC22F5583266eB26eb623FB7b23d5d43ae7",
                  "0x4c3d603edCC98320d9B1D8ef52415FdDb8106cCB",
-                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642"]
+                 "0xDC37ce5496d51da209134aD9Dd39Ac8df5dc4642",
+                 "0xbB66eF34814f0613a3B738288FE55553A69C44BA",
+                 "0x6a09436F3Cb7C3e871071033ABA967327499b9d4",
+                 "0x138B9eBeC6DcF3a5293FD6F5846cCBFE7A9e856a",
+                 "0xA6e799871576a4337bB1EBf8E0CFe348209A9a1B",
+                 "0x93e92A2Bc0c66A2887eCF5C918fbbd622491eD23",
+                 "0xa72e420605FD940b860c493263ce891d434782CB",
+                 "0x2CB3437FcCF9fdd7a77438d232192E2bc2F2a76D",
+                 "0xe1ac1b434331F1c57b909947eC20393819Ad462f",
+                 "0xD9c258d8aA168add0E5183C9725c1C7C0712868A",
+                 "0xE9003b2Ee7Ee7E33233c05272792a0fE4e5EeE90"]
 
 AUCTION_TIME = 60
 
@@ -76,6 +96,8 @@ print("\nWaiting for request...")
 auc_dict = {}
 # The Number of Bids Revealed for a particular Auction ID
 count_reveal = 0
+# Global variable to keep count of which group of CSs to use
+cs_grp = 1
 
 # Function that checks for reveal to end then reveals their offer
 def reveal_offer(auc_id, seller, bid_id):
@@ -137,20 +159,45 @@ def send_bid(auc_id, _time, buyer, max_price, seller):
 # this loop runs on a poll interval
 async def log_loop1(event_filter, poll_interval):
     global auc_dict
+    global cs_grp
     while True:
         for LogReqCreated in event_filter.get_new_entries():
             if LogReqCreated['args']['_aucId'] in auc_dict:
                 continue
             auc_dict[LogReqCreated['args']['_aucId']] = {}
             print(f"\n[ID: {LogReqCreated['args']['_aucId']}] New Request Received!!!")
-            for seller_address in ACCOUNTS_LIST[5:]:
-                thread = threading.Thread(target = send_bid, args = (
-                    LogReqCreated['args']['_aucId'],
-                    LogReqCreated['args']['_time'],
-                    LogReqCreated['args']['buyer'],
-                    LogReqCreated['args']['_maxPrice'],
-                    seller_address))
-                thread.start()
+            
+            # Select correct group depending on cs_grp variable
+            if cs_grp == 1:
+                for seller_address in ACCOUNTS_LIST[5:10]:
+                    thread = threading.Thread(target = send_bid, args = (
+                        LogReqCreated['args']['_aucId'],
+                        LogReqCreated['args']['_time'],
+                        LogReqCreated['args']['buyer'],
+                        LogReqCreated['args']['_maxPrice'],
+                        seller_address))
+                    thread.start()
+                cs_grp = 2
+            elif cs_grp == 2:
+                for seller_address in ACCOUNTS_LIST[10:15]:
+                    thread = threading.Thread(target = send_bid, args = (
+                        LogReqCreated['args']['_aucId'],
+                        LogReqCreated['args']['_time'],
+                        LogReqCreated['args']['buyer'],
+                        LogReqCreated['args']['_maxPrice'],
+                        seller_address))
+                    thread.start()
+                cs_grp = 3
+            else:
+                for seller_address in ACCOUNTS_LIST[15:]:
+                    thread = threading.Thread(target = send_bid, args = (
+                        LogReqCreated['args']['_aucId'],
+                        LogReqCreated['args']['_time'],
+                        LogReqCreated['args']['buyer'],
+                        LogReqCreated['args']['_maxPrice'],
+                        seller_address))
+                    thread.start
+                cs_grp = 1
             print(f"\n[Active Processes] {threading.active_count() - 1}\n")
             # print(auc_dict)
         await asyncio.sleep(poll_interval)

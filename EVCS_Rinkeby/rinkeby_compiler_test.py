@@ -1,6 +1,8 @@
+from abc import abstractclassmethod
+from typing import Awaitable
 from web3 import Web3, middleware
-from web3.exceptions import ContractLogicError
-from web3.middleware import geth_poa_middleware
+from web3.exceptions import ContractLogicError, ManifestValidationError
+from web3.middleware import async_combine_middlewares, geth_poa_middleware
 from web3.gas_strategies.time_based import *
 from solcx import compile_source
 import json
@@ -13,7 +15,7 @@ PRIVATE_KEY = "b22e9f365e9e2512b0ed58bbed53264d4866ae07684148f2456e9d832a3dbd42"
 
 # Import and Compile solidity smart contract
 with open("EnergyTradingAuction.sol", "r") as file_obj:
-	compiled_sol = compile_source(file_obj.read())
+    compiled_sol = compile_source(file_obj.read())
 
 # retrieve the contract interface
 contract_id, contract_interface = compiled_sol.popitem()
