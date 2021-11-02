@@ -132,17 +132,18 @@ def update_balance(auc_id):
             buyer_price = evchargingmarket.functions.contracts(auc_id).call()[3]
             seller_price = evchargingmarket.functions.contracts(auc_id).call()[4]
 
-            print(f"\n[ID: {auc_id}] Updated balances of Buyer and Seller...")
-            print("Selling Price: ", seller_price)
-            print("Buyer Price: ", buyer_price)
-            print("Exchange price: ", (seller_price + buyer_price) / 2)
-            print("Amount of Charge: ", amount_charge)
-            print(f"\nSeller @ Address: 0x...{ seller[-4:]}")
-            print("Seller balance: ", evchargingmarket.functions.accounts(seller).call()[0])
-            print("Seller charge: ", evchargingmarket.functions.accounts(seller).call()[1])
-            print(f"\nBuyer @ Address: 0x...{buyer[-4:]}")
-            print("Buyer balance: ", evchargingmarket.functions.accounts(buyer).call()[0])
-            print("Buyer charge: ", evchargingmarket.functions.accounts(buyer).call()[1])
+            print(f"""
+            \n[ID: {auc_id}] Updated balances of Buyer and Seller...
+            \n\rSelling Price: {seller_price}
+            \n\rBuyer Price: {buyer_price}
+            \n\rExchange price: {(seller_price + buyer_price) / 2}
+            \n\rAmount of Charge: {amount_charge}
+            \n\n\rSeller @ Address: 0x...{seller[-4:]}
+            \n\rSeller balance: {evchargingmarket.functions.accounts(seller).call()[0]}
+            \n\rSeller charge: {evchargingmarket.functions.accounts(seller).call()[1]}
+            \n\n\rBuyer @ Address: 0x...{buyer[-4:]}
+            \n\rBuyer balance: {evchargingmarket.functions.accounts(buyer).call()[0]}
+            \n\rBuyer charge: {evchargingmarket.functions.accounts(buyer).call()[1]}""")
 
 # Function to Send Seller And Buyer Meter Reports
 def send_reports(auc_id):
