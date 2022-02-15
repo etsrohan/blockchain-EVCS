@@ -291,7 +291,7 @@ contract EvChargingMarket {
         uint256 date = contracts[_aucId].deliveryTime;
         uint amount = contracts[_aucId].amount;                                                 // amount is amount of electricity in kwh
         uint amountToTakeBuyer = contracts[_aucId].buyerMaxPrice * amount;
-        uint amountToPaySeller = ((contracts[_aucId].currentPrice ** 2) * 10 / 4) * amount;
+        uint amountToPaySeller = ((contracts[_aucId].currentPrice ** 2) * 25) * amount;
         uint amountToTakeAuctioner = amountToPaySeller - amountToTakeBuyer;
         // uint amountToPay = amount * (contracts[_aucId].currentPrice + contracts[_aucId].buyerMaxPrice) / 2;                        // amountToPay is money owed = electricity in kwh * rate ((lowest price + ev_bid) / 2)
         accounts[_buyer].payments.push(Payment(_aucId, date, amount, true, amountToTakeBuyer));       // payment added to buyer ledger (true is for bool toPay)
